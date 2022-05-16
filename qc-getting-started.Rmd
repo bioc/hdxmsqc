@@ -1,0 +1,97 @@
+---
+title: "Performing quality control on hdx-ms data"
+author: "Oliver M. Crook"
+date: "16/05/2022"
+output: html_document
+---
+
+# Introduction
+
+
+# packages
+
+```{r,}
+require(S4Vectors)
+require(dplyr)
+require(tidyr)
+require(QFeatures)
+```
+
+# Data
+
+```{r,}
+BRD4uncurated <- data.frame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
+```
+
+We can now have a look at the .csv file.
+
+```{r,}
+head(BRD4uncurated)
+length(unique(BRD4uncurated$Sequence))
+```
+
+Convert n/a s to NA
+
+```{r,}
+BRD4uncurated[BRD4uncurated == "n/a"] <- NA
+```
+
+Convert Actual.RT/IMS.Range to left and right RT
+```{r,}
+BRD4uncurated$leftRT <- 0
+BRD4uncurated$rightRT <- 0
+BRD4uncurated$leftIMS <- 0
+BRD4uncurated$rightIMS <- 0
+```
+
+```{r,}
+left_right_Rt <- t(vapply(strsplit(BRD4uncurated$Actual.RT, fixed = TRUE, split = "-"), function(x) as.numeric(x[1:2]), FUN.VALUE = numeric(2))) 
+left_right_ims <-  t(vapply(strsplit(BRD4uncurated$IMS.Range, fixed = TRUE, split = "-"), function(x) as.numeric(x[1:2]), FUN.VALUE = numeric(2))) 
+```
+```{r,}
+BRD4uncurated[, c("leftRT", "rightRT")] <- left_right_Rt
+BRD4uncurated[, c("leftIMS", "rightIMS")] <- left_right_ims
+```
+
+spit out fully deuterated samples
+```{r,}
+BRD4uncurated_fd <- BRD4uncurated[BRD4uncurated$Deut.Time == "FD",]
+BRD4uncurated <- BRD4uncurated[BRD4uncurated$Deut.Time != "FD",]
+```
+
+convert times seconds, currently as character:
+```{r,}
+BRD4uncurated$Deut.Time <- vapply(strsplit(BRD4uncurated$Deut.Time, "s"), function(x) as.numeric(x), FUN.VALUE = numeric(1))
+```
+
+add in repliate numbers
+```{r,}
+BRD4uncurated <- BRD4uncurated |> group_by(Deut.Time, Sequence, Protein.State, Charge) |> mutate(replicate = row_number())
+
+```
+
+```{r,}
+BRD4uncurated$Deut..[BRD4uncurated$Deut.. == ""] <- 0
+BRD4uncurated$Deut.. <- as.numeric(BRD4uncurated$Deut..)
+```
+
+```{r,}
+BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "apo BRD4(1-477) wt"] <- "wt"
+BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "+iBET-151"] <- "iBET"
+```
+
+```{r,}
+BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("Deut..", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "rightIMS"))
+```
+
+```{r,}
+i <- grep(pattern = "Deut..", x = names(BRD4uncurated_wide))
+```
+
+```{r,}
+BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = c("Sequence", "charge"))
+```
+```{r,}
+pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
+```
+
