@@ -15,6 +15,8 @@ require(S4Vectors)
 require(dplyr)
 require(tidyr)
 require(QFeatures)
+require(RColorBrewer)
+require(ggplot2)
 ```
 
 # Data
@@ -29,6 +31,8 @@ We can now have a look at the .csv file.
 head(BRD4uncurated)
 length(unique(BRD4uncurated$Sequence))
 ```
+
+
 
 Convert n/a s to NA
 
@@ -71,8 +75,10 @@ BRD4uncurated <- BRD4uncurated |> group_by(Deut.Time, Sequence, Protein.State, C
 ```
 
 ```{r,}
+BRD4uncurated$X..Deut[BRD4uncurated$Deut.. == ""] <- 0
 BRD4uncurated$Deut..[BRD4uncurated$Deut.. == ""] <- 0
 BRD4uncurated$Deut.. <- as.numeric(BRD4uncurated$Deut..)
+BRD4uncurated$X..Deut <- as.numeric(BRD4uncurated$X..Deut)
 ```
 
 ```{r,}
@@ -81,17 +87,98 @@ BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "+iBET-151"] <- "iBET
 ```
 
 ```{r,}
-BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("Deut..", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "rightIMS"))
+BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("X..Deut", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "rightIMS", "X..Spectra"))
 ```
 
 ```{r,}
-i <- grep(pattern = "Deut..", x = names(BRD4uncurated_wide))
+BRD4uncurated_wide$fnames <- paste0(BRD4uncurated_wide$Sequence, BRD4uncurated_wide$Charge)
+```
+
+
+```{r,}
+i <- grep(pattern = "X..Deut", x = names(BRD4uncurated_wide))
 ```
 
 ```{r,}
-BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = c("Sequence", "charge"))
+BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = "fnames")
 ```
 ```{r,}
 pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
 ```
+# Examining missing values
+
+```{r,}
+na_mat <- 1*is.na(assay(BRD4df))
+pheatmap(na_mat, cluster_rows = FALSE, cluster_cols = FALSE, color = brewer.pal(n = 3, name = "Greys")[c(1,3)], legend_breaks = c(0,1), main = "Missing value plot", fontsize = 12)
+```
+missing at random vs not at random
+
+```{r,}
+table(rowSums(na_mat))
+to_filter_missing <- 1*(rowSums(na_mat) > (ncol(na_mat)/2))
+rowData(BRD4df)[[1]]$mnar <- to_filter_missing
+BRD4df_filtered <- filterFeatures(BRD4df, ~ to_filter_missing != 1) # filtering out missing now at random
+
+```
+
+```{r,}
+na_mat <- 1*is.na(assay(BRD4df_filtered))
+pheatmap(na_mat, cluster_rows = FALSE, cluster_cols = FALSE, color = brewer.pal(n = 3, name = "Greys")[c(1,3)], legend_breaks = c(0,1), main = "Missing value plot", fontsize = 12)
+```
+```{r,}
+BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
+```
+
+```{r,}
+pheatmap(assay(BRD4df_filtered_imputed), cluster_cols = TRUE, cluster_rows = FALSE, scale = "row")
+```
+Let's first look a empirical theoretical centroids
+
+```{r,}
+j <- grep(pattern = "Exp.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+k <- grep(pattern = "Theor.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+```
+
+```{r,}
+deltaPPM <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])
+plot(c(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])), c(deltaPPM))
+
+ppmerror <- data.frame(x = c(t(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))), y = c(t(deltaPPM)), sequence = rep(rownames(BRD4df_filtered_imputed)[[1]], each = ncol(assay(BRD4df_filtered_imputed))))
+
+ppmerror |> ggplot(aes(x = x, y = y, col = sequence)) + geom_point(size = 2, alpha = 0.8) + scale_color_manual(values = colorRampPalette(brewer.pal(n  = 11, name = "Set3"))(169)) + theme_classic() + theme(legend.position = "none") + xlab("Theoretical Centroid") + ylab("Empirical Error")
+
+```
+```{r,}
+ppmerror <- ppmerror |> group_by(sequence) |> mutate(mean = mean(y), var = var(y), max = max(y), min = min(y))
+```
+
+could easily be spotted by mean and variance deviations:
+```{r,}
+hist(ppmerror$var)
+hist(ppmerror$mean)
+ppmerror |> ggplot(aes(x = abs(mean), y = var, col = sequence)) + geom_point(size = 4, alpha = 0.8) + scale_color_manual(values = colorRampPalette(brewer.pal(n  = 11, name = "Set3"))(169)) + theme_classic() + theme(legend.position = "none") + xlab("absolute mean mass error") + ylab("Variance mass error")
+```
+
+```{r,}
+ii <-  grep(pattern = "Max.Inty", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+intensity_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, ii])
+plot(log(apply(intensity_mat, 1, mean)), log(apply(intensity_mat, 1, var)))
+```
+
+```{r,}
+plot(BRD4uncurated$X..Spectra, BRD4uncurated$Score) # should remove the data with no Spectra measured
+
+```
+
+# Are rentention times good
+
+```{r,}
+jj <- grep(pattern = "rightRT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+jj2 <- grep(pattern = "leftRT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+kk <- grep(pattern = "Search.RT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+leftrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+rightrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+searchrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(kk)])
+```
+
 
