@@ -18,6 +18,7 @@ require(QFeatures)
 require(RColorBrewer)
 require(ggplot2)
 require(Peptides)
+require(MASS)
 ```
 
 # Data
@@ -223,6 +224,10 @@ for (j in seq.int(nrow(assay(BRD4df_filtered_imputed)))){
 }
 plot(ideastat, lwd = 1)
  plot(table(ideastat), type = "h", lwd = 2, col = "red")
+ pmult <- table(ideastat)/length(ideastat)
+ cumsum(pmult)
+ plot(names(pmult), cumsum(pmult), cex = 2, type = "l", lwd = 2, ylab = "Cumulative density", xlab = "Monotonicity Statistics")
+ abline(h = 0.9, col = "red", lwd = 2)
 ```
 # Why do neighbouring peptide deviate from monotonicity?
 
@@ -344,13 +349,14 @@ myPredictjoin <- do.call(cbind, myPredict)
             df <- data.frame(myPredict_long)
             
             df$condition <- gsub("X", "", df$condition)
+            df$condition <- levels(interaction(c(1,2), c(3,4)))[as.numeric(df$condition)]
             
             gg <- ggplot(data, aes(y = value,
                                    x = timepoint,
                                    color = interaction(condition,charge))) + geom_point(size = 4) + theme_classic() + 
                 geom_line(data = df, aes(x = timepoint, y = fit, color = condition), inherit.aes = FALSE,  size = 2) + 
                 labs(x = "Exposure", y = "Deuterium Incoperation", color = "condition",
-                     title = paste0(data$rowname[1])) + 
+                     title = paste(unique(data$rowname), ",", collapse = " ")) + 
                 scale_color_manual(values = brewer.pal(n = 4, name = "Set2"))
 
 ```
