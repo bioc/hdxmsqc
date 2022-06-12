@@ -19,6 +19,9 @@ require(RColorBrewer)
 require(ggplot2)
 require(Peptides)
 require(MASS)
+require(pheatmap)
+require(minpack.lm)
+require(Rfast)
 ```
 
 # Data
@@ -89,7 +92,7 @@ BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "+iBET-151"] <- "iBET
 ```
 
 ```{r,}
-BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("X..Deut", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "leftIMS", "rightIMS", "X..Spectra"))
+BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("X..Deut", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "leftIMS", "rightIMS", "X..Spectra", "Start", "End"))
 ```
 
 ```{r,}
@@ -360,4 +363,58 @@ myPredictjoin <- do.call(cbind, myPredict)
                 scale_color_manual(values = brewer.pal(n = 4, name = "Set2"))
 
 ```
+# We need to check whether deuteration profiles are actually possible given
+# sequence information
 
+```{r,}
+num_exch <- function(peptides){
+    
+    ne <- vapply(strsplit(peptides, split = ""),
+                 function(x) length(x) - 3, numeric(1))
+    return(ne)
+}
+ne <- num_exch(peptides = rownames(assay(BRD4df_filtered_imputed)))
+
+check_max_deuteration <- function(object, numExch){
+    
+    wh <- which(assay(object) > numExch, arr.ind = TRUE)
+    return(wh)
+    
+}
+check_max_deuteration(object = BRD4df_filtered_imputed, numExch = ne)
+```
+```{r,}
+pep <- sapply(strsplit(rownames(assay(BRD4df_filtered_imputed)), split = ""), function(x) x[seq.int(length(x) - 1)])
+pep <- sapply(pep, function(x) paste(x, sep = "", collapse = "") )
+```
+
+```{r,}
+jj <- grep(pattern = "Start", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+jj2 <- grep(pattern = "End", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+start_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+end_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+
+# okay working but charge states to stringent only compare same charge.
+seqs <- sapply(1:nrow(start_mat), function(x) seq.int(start_mat[x,1], end_mat[x,1]))
+charges <- sapply(strsplit(rownames(BRD4df_filtered_imputed)[[1]], split = ""), function(x) x[length(x)])
+flagged <- list()
+
+for (j in seq.int(nrow(start_mat))) {
+    dout <- sapply(seq.int(nrow(start_mat)), function(x) 
+        max(length(seqs[[j]]), length(seqs[[x]])) - 
+                      length(intersect(seqs[[j]], seqs[[x]])))
+    oi <- dout[dout < 5]
+    charge_sub <- charges[dout < 5]
+    ch <- charge_sub %in% charge_sub[which(oi== 0)[1]]
+    mat <- t(assay(BRD4df_filtered_imputed)[(dout < 5),])
+    if (length(oi) == 1){
+        next
+    }
+    
+    d1 <- abs(mat - mat[, which(oi == 0)[1]])
+    test <- sapply(seq.int(ncol(start_mat)), function(x) {d1[x,] <= dout[(dout < 5)]})  
+    test <- test[ch,] # remove charge diferent charge state
+    flagged[[j]] <- which(!test, arr.ind = TRUE)
+}
+
+```
