@@ -21,13 +21,15 @@ require(Peptides)
 require(MASS)
 require(pheatmap)
 require(minpack.lm)
-require(Rfast)
+require(Spectra)
+require(patchwork)
+source("hdxincoperationFourier.R")
 ```
 
 # Data
 
 ```{r,}
-BRD4uncurated <- data.frame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
+BRD4uncurated <- DataFrame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
 ```
 
 We can now have a look at the .csv file.
@@ -144,8 +146,11 @@ j <- grep(pattern = "Exp.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
 k <- grep(pattern = "Theor.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
 ```
 
+ToDo: We need to threshold here before we can move forward with what we actually do here
+
+
 ```{r,}
-deltaPPM <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])
+deltaPPM <- ((as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))/as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])) * 10^4
 plot(c(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])), c(deltaPPM))
 
 ppmerror <- data.frame(x = c(t(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))), y = c(t(deltaPPM)), sequence = rep(rownames(BRD4df_filtered_imputed)[[1]], each = ncol(assay(BRD4df_filtered_imputed))))
@@ -168,6 +173,22 @@ ppmerror |> ggplot(aes(x = abs(mean), y = var, col = sequence)) + geom_point(siz
 ii <-  grep(pattern = "Max.Inty", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
 intensity_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, ii])
 plot(log(apply(intensity_mat, 1, mean)), log(apply(intensity_mat, 1, var)), ylab = "log var", xlab = "log mean", main = "intensity")
+```
+use cook distance to detect outliers
+
+```{r,}
+model <- lm(log(apply(intensity_mat, 1, var)) ~ log(apply(intensity_mat, 1, mean)))
+cookD <- cooks.distance(model)
+cookD <- data.frame(x = names(cookD), y = cookD)
+cookD$outlier <- as.character(1 * (cookD$y > 2/sqrt(nrow(cookD))))
+ggIntensity <- ggplot(cookD, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = 2/sqrt(nrow(cookD)), color = "black") + coord_flip() + 
+    ylab("cook's distance") + ggtitle("Intensity outliers") + xlab("peptide")
+
+ggIntensity
+
 ```
 
 ```{r,}
@@ -198,6 +219,12 @@ gg <- df |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) + geom_
 ```
 
 ```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+df$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+```{r,}
 rmright <- rowMedians(rightrt_mat)
 pheatmap(rightrt_mat - rmright, cluster_rows = FALSE, cluster_cols = FALSE)
 boxplot(rightrt_mat - rmright)
@@ -207,36 +234,90 @@ df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
 colnames(df) <- c("Sequence", "Experiment", "RT_shift")
 gg1 <- df |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Blues"))(ncol(rightrt_mat))) + theme_classic() + ylab("RT right shift") + coord_flip() + theme(text = element_text(size = 20))
 ```
+```{r,}
+gg + gg1
+```
+We need to actually compute the interquartile range and return outliers
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+df$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+
 
 # Monotonicty statistics
 
-```{r,}
-test <- data.frame( y= assay(BRD4df)[10,1:18], x = rep(c(0,15,60,600,3600,14000), each = 3))
-res <- loess(y ~ x, data = test)
-smoothed <- predict(res)
-plot(res)
-lines(smoothed, x = test$x, lwd = 2, col = "blue")
-res <- isoreg(x = test$x, y = test$y)
-plot(res)
+Nee to wrap this up slightly more nicely
 
-ideastat <- vector(mode = "numeric", length = nrow(assay(BRD4df_filtered_imputed)))
-for (j in seq.int(nrow(assay(BRD4df_filtered_imputed)))){
-    test <- data.frame( y= assay(BRD4df_filtered_imputed)[j, 1:18], x = rep(c(0, 15, 60, 600, 3600, 14000), each = 3))
-    res2 <- test |> group_by(x) |> summarise(Mean = mean(y, na.rm = TRUE))
-    ideastat[j] <- sum(abs(order(res2$Mean, decreasing = TRUE) - order(res2$x, decreasing = TRUE)))
+```{r,}
+#First define experiment and timepoints
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- matrix(NA,
+                   ncol = nrow(assay(BRD4df_filtered_imputed)), 
+                   nrow = length(experiment))
+
+for (k in seq.int(length(experiment))){
+    
+    # get columns for experiment
+    zz <- grep(pattern = experiment[k], x = colnames(BRD4df_filtered_imputed)[[1]])
+
+    for (j in seq.int(nrow(assay(BRD4df_filtered_imputed)))){
+        test <- data.frame( y = assay(BRD4df_filtered_imputed)[j, zz], 
+                            x = timepoints)
+        res2 <- test |> group_by(x) |> summarise(Mean = mean(y, na.rm = TRUE))
+        monoStat[k,j] <- sum(abs(order(res2$Mean, decreasing = TRUE) - order(res2$x, decreasing = TRUE)))
+    }
 }
-plot(ideastat, lwd = 1)
- plot(table(ideastat), type = "h", lwd = 2, col = "red")
- pmult <- table(ideastat)/length(ideastat)
- cumsum(pmult)
- plot(names(pmult), cumsum(pmult), cex = 2, type = "l", lwd = 2, ylab = "Cumulative density", xlab = "Monotonicity Statistics")
- abline(h = 0.9, col = "red", lwd = 2)
 ```
+
+
+```{r,}
+plot(monoStat[1,], lwd = 1)
+plot(table(monoStat[2,]), type = "h", lwd = 2, col = "red")
+pmult <- table(monoStat[1,])/length(monoStat[1,])
+ cumsum(pmult)
+plot(names(pmult), cumsum(pmult), cex = 2, type = "l", lwd = 2, ylab = "Cumulative density", xlab = "Monotonicity Statistics")
+ abline(h = 0.9, col = "red", lwd = 2)
+ 
+# the threshold we should apply to filer values
+wh <- min(which(cumsum(pmult) > 0.95))
+toThres <- as.numeric(names(pmult)[wh]) 
+
+df <- data.frame(x = rownames(assay(BRD4df_filtered_imputed)), y = monoStat[1,])
+df$outlier <- as.character(1*(df$y >= toThres))
+ggMono1 <-  ggplot(df, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = toThres, color = "black") + coord_flip() + 
+    ylab("Deviation from monotone") + ggtitle("Monotonicity outliers wt") + xlab("peptide")
+
+
+pmult <- table(monoStat[2,])/length(monoStat[2,])
+# the threshold we should apply to filer values
+wh <- min(which(cumsum(pmult) > 0.95))
+toThres <- as.numeric(names(pmult)[wh]) 
+
+df <- data.frame(x = rownames(assay(BRD4df_filtered_imputed)), y = monoStat[2,])
+df$outlier <- as.character(1*(df$y >= toThres))
+ggMono2 <-  ggplot(df, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = toThres, color = "black") + coord_flip() + 
+    ylab("Deviation from monotone") + ggtitle("Monotonicity outliers ") + xlab("peptide")
+ggMono2
+
+```
+
+
+
 # Why do neighbouring peptide deviate from monotonicity?
 
-Seems nothing 
+Seems nothing is interesting, will leave this analysis
 
-```{r,}
+```{r, eval = FALSE}
 j <- 130
 test <- data.frame( y= assay(BRD4df_filtered_imputed)[j, 1:18], x = rep(c(0, 15, 60, 600, 3600, 14000), each = 3))
 res <- isoreg(x = test$x, y = test$y)
@@ -251,7 +332,10 @@ hy <- hydrophobicity(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rown
 cor.test(ideastat, percProline)
 cor.test(ideastat, hy)
 ```
+
 # Ion Mobility statistics
+
+do what we did for RT
 
 ```{r,}
 jj <- grep(pattern = "rightIMS", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
@@ -274,6 +358,12 @@ gg <- df |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) + geom
 ```
 
 ```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+df$outlier <- 1*(abs(df$IMS_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+```{r,}
 rmright <- rowMedians(rightIMS_mat)
 pheatmap(rightIMS_mat - rmright, cluster_rows = FALSE, cluster_cols = FALSE)
 boxplot(rightIMS_mat - rmright)
@@ -284,23 +374,45 @@ colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
 gg1 <- df |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Reds"))(ncol(rightrt_mat))) + theme_classic() + ylab("IMS right shift") + coord_flip() + theme(text = element_text(size = 20))
 ```
 
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+df$outlier <- 1*(abs(df$IMS_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
 # Check charge states are compatible
 
 ```{r,}
 wh <- which(table(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rownames(BRD4df_filtered_imputed)[[1]]) - 1)) > 1)
 chstate <- substr(rownames(BRD4df_filtered_imputed)[[1]],nchar(rownames(BRD4df_filtered_imputed)[[1]]), nchar(rownames(BRD4df_filtered_imputed)[[1]]))
 ch <- which(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rownames(BRD4df_filtered_imputed)[[1]]) - 1) == names(wh)[2])
-test <- data.frame( y= c(assay(BRD4df_filtered_imputed)[ch, 19:36]), x = rep(c(0, 15, 60, 600, 3600, 14000), each = 6), z = rep(chstate[ch], times = 18))
 
-test |> ggplot(aes(x = x, y = y, col = z)) + geom_point() + theme_classic()
+zz <- grep(pattern = experiment[1], colnames(assay(BRD4df_filtered_imputed)))
 
-cor(assay(BRD4df_filtered_imputed)[ch, 1:18][1,], assay(BRD4df_filtered_imputed)[ch, 1:18][2,])
-cor(assay(BRD4df_filtered_imputed)[ch, 19:36][1,], assay(BRD4df_filtered_imputed)[ch, 19:36][2,])
+
+
+df <- data.frame(y = c(assay(BRD4df_filtered_imputed)[ch, zz]),
+                 x = rep(timepoints, each = length(ch)), z = rep(chstate[ch], times = length(timepoints)))
+df <- df |> group_by(x,z) |> mutate(replicate = row_number())
+df_2 <- df |> filter(x!=0) |> pivot_wider(id_cols = c("x", "replicate"),
+                                        names_from = z, values_from = y)
+df |> filter(x != 0 ) |> ggplot(aes(x = x, y = y, col = z)) + geom_point() + theme_classic() + scale_x_log10()
+
+cor(df_2[,-c(1:2)])
 
 
 
 
 ```
+
+
+
+
+
+
+
+
 ```{r,}
 # Thinking about modelling charge states? This nees careful editting to make sense.
 
@@ -363,30 +475,12 @@ myPredictjoin <- do.call(cbind, myPredict)
                 scale_color_manual(values = brewer.pal(n = 4, name = "Set2"))
 
 ```
+
+
+
+
 # We need to check whether deuteration profiles are actually possible given
 # sequence information
-
-```{r,}
-num_exch <- function(peptides){
-    
-    ne <- vapply(strsplit(peptides, split = ""),
-                 function(x) length(x) - 3, numeric(1))
-    return(ne)
-}
-ne <- num_exch(peptides = rownames(assay(BRD4df_filtered_imputed)))
-
-check_max_deuteration <- function(object, numExch){
-    
-    wh <- which(assay(object) > numExch, arr.ind = TRUE)
-    return(wh)
-    
-}
-check_max_deuteration(object = BRD4df_filtered_imputed, numExch = ne)
-```
-```{r,}
-pep <- sapply(strsplit(rownames(assay(BRD4df_filtered_imputed)), split = ""), function(x) x[seq.int(length(x) - 1)])
-pep <- sapply(pep, function(x) paste(x, sep = "", collapse = "") )
-```
 
 ```{r,}
 jj <- grep(pattern = "Start", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
@@ -417,4 +511,16 @@ for (j in seq.int(nrow(start_mat))) {
     flagged[[j]] <- which(!test, arr.ind = TRUE)
 }
 
+flagged_df <- flagged[sapply(flagged, length) > 0]
+names(flagged_df) <- sapply(flagged_df, function(x) rownames(x)[1])
+whichtoflag <- sapply(flagged_df, function(x) x[,2])
+
 ```
+
+```{r,}
+hdxsite <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", header = TRUE, sep = "\t")
+hdxsite <- data.frame(hdxsite)
+```
+
+
+

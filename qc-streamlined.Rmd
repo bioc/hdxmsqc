@@ -1,0 +1,38 @@
+---
+title: "gc-tidying"
+author: "Oliver M. Crook"
+date: "17/06/2022"
+output: html_document
+---
+
+# Introduction
+
+
+# packages
+
+```{r,}
+require(S4Vectors)
+require(dplyr)
+require(tidyr)
+require(QFeatures)
+require(RColorBrewer)
+require(ggplot2)
+require(Peptides)
+require(MASS)
+require(pheatmap)
+require(minpack.lm)
+require(Spectra)
+require(patchwork)
+source("hdxincoperationFourier.R")
+```
+
+# Data
+
+```{r,}
+BRD4uncurated <- data.frame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
+```
+
+Tidy dataset, which improves the formatting and converts to wide format
+```{r,}
+BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated, proteinStates = c("wt", "iBET"))
+```
