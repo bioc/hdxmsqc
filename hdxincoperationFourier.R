@@ -148,6 +148,8 @@ isotopicDistributionHDXfourier <- function(sequence,
     
     intensity <- as.numeric(res$intensity)
     mz <- as.numeric(res$mz)
+    mz <- mz[!(intensity < 10^{-8})]
+    intensity <- intensity[!(intensity < 10^{-8})]
     
     # generate spectra object
     spec <- DataFrame(

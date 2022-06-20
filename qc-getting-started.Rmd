@@ -518,9 +518,77 @@ whichtoflag <- sapply(flagged_df, function(x) x[,2])
 ```
 
 ```{r,}
-hdxsite <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", header = TRUE, sep = "\t")
+hdxsite <- read.csv("inst/HDSite_UndeuteratedData.txt", skip = 1, sep = "\t", header = FALSE)
+hdxsite_names <- read.csv("inst/HDSite_UndeuteratedData.txt", nrows = 1, sep = "\t", header = FALSE)
 hdxsite <- data.frame(hdxsite)
+colnames(hdxsite)[seq_along(hdxsite_names)] <- hdxsite_names[1,]
+
 ```
 
+```{r,}
+scoreThreshold <- 0.9
+mzvec <- hdxsite[,14]
+sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite$`Start RT` + hdxsite$`End RT`) / 2)
+sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 19), ncol = 19) + matrix(rep(seq.int(1:19) - 1, nrow(hdxsite)), ncol = 19, byrow = TRUE)/hdxsite$z)))
+hdxsite[hdxsite == "NaN"] <- 0
+sps$intensity <- as.list(data.frame(t(hdxsite[,-(1:14)])))
 
+spd <- Spectra(sps)
+spd$Sequence <- BRD4uncurated |> filter(Deut.Time == "0s", Protein.State == "apo BRD4(1-477) wt") |> pull(Sequence)
+spd$Charge <- hdxsite$z
+spd$intensity <- spd$intensity/max(intensity(spd))
 
+testspectra <- lapply(seq.int(length(spd$Sequence)), function(z)
+                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = 0, charge = spd$Charge[z]))
+testspectramerge <- concatenateSpectra(x = testspectra)
+testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity)
+plotSpectraMirror(x = spd[1,], y= testspectramerge[1,])
+spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+                                compareSpectra(x = spd[z, ],
+                                               y = testspectramerge[z, ]),
+                        FUN.VALUE = numeric(1))
+which(spectrascores < 0.9)
+par(mfrow = c(4,4))
+sapply(1:16, function(z)
+    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]]))
+
+```
+```{r,}
+hdxsite2 <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", skip = 1, sep = "\t", header = FALSE)
+hdxsite2_names <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", nrows = 1, sep = "\t", header = FALSE)
+hdxsite2 <- data.frame(hdxsite2)
+colnames(hdxsite2)[seq_along(hdxsite2_names)] <- hdxsite2_names[1,]
+colnames(hdxsite2)[which(colnames(hdxsite2) == "NA")] <- paste0("m+", which(colnames(hdxsite2) == "NA")-15)
+```
+
+```{r,}
+scoreThreshold <- 0.9
+hdxsite2[hdxsite2 == "NaN"] <- 0
+hdxsite2  <- hdxsite2 |> filter(`Protein State` %in% c("+iBET-151", "apo BRD4(1-477) wt"))
+
+mzvec <- hdxsite2[,14]
+sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite2$`Start RT` + hdxsite2$`End RT`) / 2)
+sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 33), ncol = 33) + matrix(rep(seq.int(1:33) - 1, nrow(hdxsite2)), ncol = 33, byrow =TRUE)/hdxsite2$z)))
+
+sps$intensity <- as.list(data.frame(t(hdxsite2[,-(1:14)])))
+
+spd <- Spectra(sps)
+spd$Sequence <- BRD4uncurated |> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
+spd$Charge <- hdxsite2$z
+spd$intensity <- spd$intensity/max(intensity(spd))
+
+testspectra <- lapply(seq.int(length(spd$Sequence)), function(z)
+                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = 0, charge = spd$Charge[z]))
+testspectramerge <- concatenateSpectra(x = testspectra)
+testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity)
+plotSpectraMirror(x = spd[1,], y= testspectramerge[1,])
+spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+                                compareSpectra(x = spd[z, ],
+                                               y = testspectramerge[z, ]),
+                        FUN.VALUE = numeric(1))
+which(spectrascores < 0.9)
+par(mfrow = c(4,4))
+sapply(1:16, function(z)
+    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]]))
+
+```
