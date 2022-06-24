@@ -561,6 +561,8 @@ colnames(hdxsite2)[seq_along(hdxsite2_names)] <- hdxsite2_names[1,]
 colnames(hdxsite2)[which(colnames(hdxsite2) == "NA")] <- paste0("m+", which(colnames(hdxsite2) == "NA")-15)
 ```
 
+# up to here, do we need to filter out charge states to get everything to add up?
+# still not adding up, need to chat to Nathan to work this out.
 ```{r,}
 scoreThreshold <- 0.9
 hdxsite2[hdxsite2 == "NaN"] <- 0
@@ -572,8 +574,10 @@ sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 33), ncol = 33) + matrix(rep(se
 
 sps$intensity <- as.list(data.frame(t(hdxsite2[,-(1:14)])))
 
+BRD4uncurated_wc <- BRD4uncurated[!duplicated(BRD4uncurated[,1:7]),]
+
 spd <- Spectra(sps)
-spd$Sequence <- BRD4uncurated |> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
+spd$Sequence <- BRD4uncurated_wc |> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
 spd$Charge <- hdxsite2$z
 spd$intensity <- spd$intensity/max(intensity(spd))
 
