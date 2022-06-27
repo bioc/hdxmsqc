@@ -150,7 +150,7 @@ ToDo: We need to threshold here before we can move forward with what we actually
 
 
 ```{r,}
-deltaPPM <- ((as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))/as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])) * 10^4
+deltaPPM <- ((as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))/as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])) * 10^6
 plot(c(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])), c(deltaPPM))
 
 ppmerror <- data.frame(x = c(t(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))), y = c(t(deltaPPM)), sequence = rep(rownames(BRD4df_filtered_imputed)[[1]], each = ncol(assay(BRD4df_filtered_imputed))))
@@ -566,15 +566,18 @@ colnames(hdxsite2)[which(colnames(hdxsite2) == "NA")] <- paste0("m+", which(coln
 ```{r,}
 scoreThreshold <- 0.9
 hdxsite2[hdxsite2 == "NaN"] <- 0
-hdxsite2  <- hdxsite2 |> filter(`Protein State` %in% c("+iBET-151", "apo BRD4(1-477) wt"))
+tidy.names <- make.names(colnames(hdxsite2), unique = TRUE)
+colnames(hdxsite2) <- tidy.names
+hdxsite2  <- hdxsite2 |> filter((Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")))
 
 mzvec <- hdxsite2[,14]
-sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite2$`Start RT` + hdxsite2$`End RT`) / 2)
+sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite2$Start.RT + hdxsite2$End.RT) / 2)
 sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 33), ncol = 33) + matrix(rep(seq.int(1:33) - 1, nrow(hdxsite2)), ncol = 33, byrow =TRUE)/hdxsite2$z)))
 
 sps$intensity <- as.list(data.frame(t(hdxsite2[,-(1:14)])))
 
-BRD4uncurated_wc <- BRD4uncurated[!duplicated(BRD4uncurated[,1:7]),]
+BRD4uncurated_wc <- data.frame(BRD4uncurated[!duplicated(BRD4uncurated[,1:7]),])
+
 
 spd <- Spectra(sps)
 spd$Sequence <- BRD4uncurated_wc |> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)

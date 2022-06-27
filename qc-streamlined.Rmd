@@ -24,6 +24,7 @@ require(minpack.lm)
 require(Spectra)
 require(patchwork)
 source("hdxincoperationFourier.R")
+source("hdxmsqc-utils.R")
 ```
 
 # Data
@@ -36,3 +37,45 @@ Tidy dataset, which improves the formatting and converts to wide format
 ```{r,}
 BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated, proteinStates = c("wt", "iBET"))
 ```
+Columns with quantitative data
+```{r,}
+i <- grep(pattern = "X..Deut", x = names(BRD4uncurated_wide))
+```
+
+Make into a Qfeatures object
+```{r,}
+BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = "fnames")
+```
+
+Visualisation
+```{r,}
+pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
+```
+# Examining missing values
+
+Here, we can plot where the missing values are:
+```{r,}
+plotMissing(object = BRD4df)
+```
+
+Here, we can filter data that is not missing at random:
+```{r,}
+BRD4df_filtered <- isMissingAtRandom(object = BRD4df)
+```
+```{r,}
+plotMissing(object = BRD4df_filtered)
+```
+The values that are missing are all at the zero time-points where deuterium
+uptake should be 0, we can simply impute these values.
+
+```{r,}
+BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
+```
+
+# Empirical vs Theoretical errors
+
+```{r,}
+computeMassError(object = BRD4df_filtered_imputed)
+plotMassError(object = BRD4df_filtered_imputed)
+```
+

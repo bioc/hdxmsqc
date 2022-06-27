@@ -114,3 +114,113 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
     return(HDExaminerFile_wide)
 
 }
+
+#' missing value plot
+#' 
+#' @param object An object of class `QFeatures`
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+#' 
+plotMissing <- function(object, ...){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    na_mat <- 1*is.na(assay(object))
+    pheatmap(na_mat, 
+             cluster_rows = FALSE,
+             cluster_cols = FALSE,
+             color = brewer.pal(n = 3, name = "Greys")[c(1, 3)],
+             legend_breaks = c(0,1),
+             legend_labels = c("Not Missing", "Missing"),
+             main = "Missing value plot",
+             fontsize = 12,...)
+    
+}
+#'Missing at random versus missing not at random
+#'
+#'@param object An object of class `QFeatures`
+#'@param threshold A threshold indicated how many missing values indicate
+#'whether missingness is not at random. Default is NULL, which means leads to a
+#'threshold which is half the number of columns.
+#'@param filter A logial indicating whether to filter out data that is deemed
+#' missing not at random
+#' 
+#' 
+isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    na_mat <- 1*is.na(assay(object))
+    if (is.null(threshold)){
+        threshold <- ncol(na_mat)/2
+    }
+    
+    to_filter_missing <- 1*(rowSums(na_mat) > threshold)
+    rowData(object)[[1]]$mnar <- to_filter_missing
+    
+    if (isTRUE(filter)){
+        object <- filterFeatures(object, ~ to_filter_missing != 1) 
+        message("Number of peptides filtered:", sum(to_filter_missing))   
+    }
+
+    
+    return(object)
+    
+}
+#'Empirical versus theoretical mass errors
+#'
+#'@param object An object of class `QFeatures`
+#'@param eCentroid character string indicating column identifier for 
+#'experimental centroid
+#'@param tCentroid character string indicating column identifier for 
+#'theoretical centroid
+#'
+computeMassError <- function(object,
+                             eCentroid = "Exp.Cent",
+                             tCentroid = "Theor.Cent"){
+    
+    j <- grep(pattern = eCentroid, x = rowDataNames(object)[[1]])
+    k <- grep(pattern = tCentroid, x = rowDataNames(object)[[1]])
+    
+    deltaPPM <- ((as.matrix(rowData(object)[[1]][, j]) - 
+                      as.matrix(rowData(object)[[1]][,k]))/as.matrix(rowData(object)[[1]][,k])) * 10^6
+
+    ppmerror <- data.frame(x = c(t(as.matrix(rowData(object)[[1]][,k]))),
+                           y = c(t(deltaPPM)), 
+                           sequence = rep(rownames(object)[[1]],
+                                          each = ncol(assay(object))))
+    return(ppmerror)
+}
+
+#' Mass error plot
+#' 
+#'@param object An object of class `QFeatures`
+#'@param eCentroid character string indicating column identifier for 
+#'experimental centroid
+#'@param tCentroid character string indicating column identifier for 
+#'theoretical centroid
+#'
+plotMassError <- function(object,
+                          eCentroid = "Exp.Cent",
+                          tCentroid = "Theor.Cent"){
+    
+    ppmerror <- computeMassError(object = object,
+                                 eCentroid = eCentroid,
+                                 tCentroid = tCentroid)
+    gg <- ppmerror |> ggplot(aes(x = x, y = y, col = sequence)) +
+        geom_point(size = 2, alpha = 0.8) + 
+        scale_color_manual(values = 
+                               colorRampPalette(brewer.pal(n  = 11, 
+                                                           name = "Set3"))(169)) +
+        theme_classic() + 
+        theme(legend.position = "none") + 
+        xlab("Theoretical Centroid") + 
+        ylab("Empirical Error")
+    
+    return(gg)
+}    
+    
