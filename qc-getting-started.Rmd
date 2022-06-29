@@ -554,11 +554,8 @@ sapply(1:16, function(z)
 
 ```
 ```{r,}
-hdxsite2 <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", skip = 1, sep = "\t", header = FALSE)
-hdxsite2_names <- read.csv("inst/ELN55049_AllResultsTables_Uncurated_HDSite.txt", nrows = 1, sep = "\t", header = FALSE)
+hdxsite2 <- read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE)
 hdxsite2 <- data.frame(hdxsite2)
-colnames(hdxsite2)[seq_along(hdxsite2_names)] <- hdxsite2_names[1,]
-colnames(hdxsite2)[which(colnames(hdxsite2) == "NA")] <- paste0("m+", which(colnames(hdxsite2) == "NA")-15)
 ```
 
 # up to here, do we need to filter out charge states to get everything to add up?
@@ -576,26 +573,28 @@ sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 33), ncol = 33) + matrix(rep(se
 
 sps$intensity <- as.list(data.frame(t(hdxsite2[,-(1:14)])))
 
-BRD4uncurated_wc <- data.frame(BRD4uncurated[!duplicated(BRD4uncurated[,1:7]),])
-
+BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
 
 spd <- Spectra(sps)
-spd$Sequence <- BRD4uncurated_wc |> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
+spd$Sequence <- BRD4matched|> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
 spd$Charge <- hdxsite2$z
-spd$intensity <- spd$intensity/max(intensity(spd))
+spd$intensity <- spd$intensity/max(intensity(spd), na.rm = TRUE)
+spd$incorp <- hdxsite2$X.D.left/hdxsite2$maxD
+spd$incorp[sps$incorp < 0] <- 0
+
 
 testspectra <- lapply(seq.int(length(spd$Sequence)), function(z)
-                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = 0, charge = spd$Charge[z]))
+                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = spd$incorp[z], charge = spd$Charge[z]))
 testspectramerge <- concatenateSpectra(x = testspectra)
 testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity)
 plotSpectraMirror(x = spd[1,], y= testspectramerge[1,])
 spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
                                 compareSpectra(x = spd[z, ],
-                                               y = testspectramerge[z, ]),
+                                               y = testspectramerge[z, ], ppm = 300),
                         FUN.VALUE = numeric(1))
 which(spectrascores < 0.9)
 par(mfrow = c(4,4))
-sapply(1:16, function(z)
-    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]]))
+sapply(1000:1015, function(z)
+    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]], ppm = 300))
 
 ```

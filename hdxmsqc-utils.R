@@ -182,6 +182,7 @@ isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
 computeMassError <- function(object,
                              eCentroid = "Exp.Cent",
                              tCentroid = "Theor.Cent"){
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
     
     j <- grep(pattern = eCentroid, x = rowDataNames(object)[[1]])
     k <- grep(pattern = tCentroid, x = rowDataNames(object)[[1]])
@@ -208,6 +209,8 @@ plotMassError <- function(object,
                           eCentroid = "Exp.Cent",
                           tCentroid = "Theor.Cent"){
     
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
     ppmerror <- computeMassError(object = object,
                                  eCentroid = eCentroid,
                                  tCentroid = tCentroid)
@@ -223,4 +226,57 @@ plotMassError <- function(object,
     
     return(gg)
 }    
+#' Intensity based deviations
+#' @param An object of class `QFeatures`
+#' @param fcolItensity character to intensity intensity columns. Default is
+#' "Max.Inty" and uses regular expressions to find relevant columns
+#' 
+#' 
+intensityOutliers <- function(object,
+                              fcolItensity = "Max.Inty"){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    ii <-  grep(pattern = "Max.Inty",
+                x = rowDataNames(obect)[[1]])
+    intensity_mat <- as.matrix(rowData(object)[[1]][, ii])
+
+    # Use cook's distance to detect outliers
+    model <- lm(log(apply(intensity_mat, 1, var)) ~ log(apply(intensity_mat, 1, mean)))
+    cookD <- cooks.distance(model)
+    cookD <- data.frame(x = names(cookD), y = cookD)
+    cookD$outlier <- as.character(1 * (cookD$y > 2/sqrt(nrow(cookD))))
+    
+    return(cookD)
+    
+}
+
+#' Intensity based deviation plot
+#' @param An object of class `QFeatures`
+#' @param fcolItensity character to intensity intensity columns. Default is
+#' "Max.Inty" and uses regular expressions to find relevant columns
+#' 
+#' 
+plotIntensityOutliers <- function(object,
+                                  fcolItensity = "Max.Inty"){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+ 
+    cookD <- intensityOutliers(object = object, fcolIntensity = fcolItensity) 
+    ggIntensity <- ggplot(cookD, aes(x = x, y = y, col = outlier)) + 
+        geom_hline(aes(yintercept=0)) +
+        geom_segment(aes(x, y, xend=x, yend = y-y)) + 
+        theme_classic() + 
+        geom_point(aes(x, y), size=3) +
+        scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+        geom_hline(yintercept = 2/sqrt(nrow(cookD)), color = "black") + coord_flip() + 
+        ylab("cook's distance") + 
+        ggtitle("Intensity outliers") + 
+        xlab("peptide")
+    
+    return(ggIntensity)
+}
+    
+    
+
     
