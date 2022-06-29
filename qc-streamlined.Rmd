@@ -79,3 +79,13 @@ computeMassError(object = BRD4df_filtered_imputed)
 plotMassError(object = BRD4df_filtered_imputed)
 ```
 
+# Intensity based outlier detection
+
+Using linear-model based outlier detection we see whether there
+are Spectra that have variable intensity based on their mean intensity
+
+```{r,}
+intensityOutlier <- intensityOutliers(object = BRD4df_filtered_imputed)
+plotIntensityOutliers(object = BRD4df_filtered_imputed)
+```
+

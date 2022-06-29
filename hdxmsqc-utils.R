@@ -228,17 +228,17 @@ plotMassError <- function(object,
 }    
 #' Intensity based deviations
 #' @param An object of class `QFeatures`
-#' @param fcolItensity character to intensity intensity columns. Default is
+#' @param fcolItnensity character to intensity intensity columns. Default is
 #' "Max.Inty" and uses regular expressions to find relevant columns
 #' 
 #' 
 intensityOutliers <- function(object,
-                              fcolItensity = "Max.Inty"){
+                              fcolIntensity = "Max.Inty"){
     
     stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
     
     ii <-  grep(pattern = "Max.Inty",
-                x = rowDataNames(obect)[[1]])
+                x = rowDataNames(object)[[1]])
     intensity_mat <- as.matrix(rowData(object)[[1]][, ii])
 
     # Use cook's distance to detect outliers
@@ -252,31 +252,130 @@ intensityOutliers <- function(object,
 }
 
 #' Intensity based deviation plot
-#' @param An object of class `QFeatures`
-#' @param fcolItensity character to intensity intensity columns. Default is
+#' @param object An object of class `QFeatures`
+#' @param fcolIntensity character to intensity intensity columns. Default is
 #' "Max.Inty" and uses regular expressions to find relevant columns
 #' 
 #' 
 plotIntensityOutliers <- function(object,
-                                  fcolItensity = "Max.Inty"){
+                                  fcolIntensity = "Max.Inty"){
     
     stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
  
-    cookD <- intensityOutliers(object = object, fcolIntensity = fcolItensity) 
+    cookD <- intensityOutliers(object = object, fcolIntensity = fcolIntensity) 
     ggIntensity <- ggplot(cookD, aes(x = x, y = y, col = outlier)) + 
         geom_hline(aes(yintercept=0)) +
         geom_segment(aes(x, y, xend=x, yend = y-y)) + 
         theme_classic() + 
         geom_point(aes(x, y), size=3) +
         scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
-        geom_hline(yintercept = 2/sqrt(nrow(cookD)), color = "black") + coord_flip() + 
+        geom_hline(yintercept = 2/sqrt(nrow(cookD)), color = "black") + 
+        coord_flip() + 
         ylab("cook's distance") + 
         ggtitle("Intensity outliers") + 
         xlab("peptide")
     
     return(ggIntensity)
 }
+
+#' Retention time based analysis
+#' @param object An object of class `QFeatures`
+#' @param leftRT A character indicated pattern associated with left boundary
+#' of retention time search. Default is "leftRT".
+#' @param rightRT A character indicated pattern associated with right boundary
+#' of retneton time search. Default is "rightRT".
+#' @param searchRT The actual search retention time pattern.
+#'  Default is "Search.RT"
+#'      
     
+rTimeOutliers <- function(object,
+                          leftRT = "leftRT",
+                          rightRT = "rightRT",
+                          searchRT = "Search.RT"){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    
+    jj <- grep(pattern = rightRT, x = rowDataNames(object)[[1]])
+    jj2 <- grep(pattern = leftRT, x = rowDataNames(object)[[1]])
+    kk <- grep(pattern = searchRT, x = rowDataNames(object)[[1]])
+    
+    leftrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+    rightrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+    searchrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(kk)])
+
+    # analyse left first
+    rmleft <- rowMedians(leftrt_mat)
+    df <- as_tibble(leftrt_mat - rmleft)
+    df$names <- rownames(leftrt_mat)
+    df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+    colnames(df) <- c("Sequence", "Experiment", "RT_shift")
+    
+    # define outliers based on difference from boxplot
+    df <- df |> group_by(Experiment) |> 
+        mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+    df <- df |> group_by(Experiment) |> 
+        mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+    df$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df$IQRu - df$IQRl))
+    
+    rmright <- rowMedians(rightrt_mat)
+    df2 <- as_tibble(rightrt_mat - rmright)
+    df2$names <- rownames(rightrt_mat)
+    df2 <- pivot_longer(df,  cols = seq.int(ncol(df2)) - 1)
+    colnames(df2) <- c("Sequence", "Experiment", "RT_shift")
+    
+    # define outliers based on difference from boxplot
+    df2 <- df2 |> group_by(Experiment) |> 
+        mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+    df2 <- df2 |> group_by(Experiment) |> 
+        mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+    df2$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df2$IQRu - df2$IQRl))
+    
+    
+    .out <- list(leftRT = df, rightRT = df2) 
+    
+    return(.out)
+}
+
+
+#' Retention time based analysis
+#' @param object An object of class `QFeatures`
+#' @param leftRT A character indicated pattern associated with left boundary
+#' of retention time search. Default is "leftRT".
+#' @param rightRT A character indicated pattern associated with right boundary
+#' of retneton time search. Default is "rightRT".
+#' @param searchRT The actual search retention time pattern.
+#'  Default is "Search.RT"
+#'  
+
+plotrTimeOutliers <- function(object,
+                              leftRT = "leftRT",
+                              rightRT = "rightRT",
+                              searchRT = "Search.RT"){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    df <- rTimeOutliers(object = object,
+                        leftRT = leftRT,
+                        rightRT = rightRT,
+                        searchRT = searchRT)
+
+    n <- length(unique(df[[1]]$Experiment))
+    
+    gg <- df[[1]] |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) +
+        geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Blues"))(n)) +
+        theme_classic() +
+        ylab("RT left shift") + 
+        coord_flip() + 
+        theme(text = element_text(size = 20))
+    
+    gg1 <- df[[2]] |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) +
+        geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Blues"))(n)) + 
+        theme_classic() + 
+        ylab("RT right shift") + 
+        coord_flip() + 
+        theme(text = element_text(size = 20))
     
 
-    
+    return(list(leftRTgg = gg, rightRTgg = gg1))
+}    
