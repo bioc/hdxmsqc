@@ -300,9 +300,9 @@ rTimeOutliers <- function(object,
     jj2 <- grep(pattern = leftRT, x = rowDataNames(object)[[1]])
     kk <- grep(pattern = searchRT, x = rowDataNames(object)[[1]])
     
-    leftrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
-    rightrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
-    searchrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(kk)])
+    leftrt_mat <- as.matrix(rowData(object)[[1]][, c(jj2)])
+    rightrt_mat <- as.matrix(rowData(object)[[1]][, c(jj)])
+    searchrt_mat <- as.matrix(rowData(object)[[1]][, c(kk)])
 
     # analyse left first
     rmleft <- rowMedians(leftrt_mat)
@@ -321,7 +321,7 @@ rTimeOutliers <- function(object,
     rmright <- rowMedians(rightrt_mat)
     df2 <- as_tibble(rightrt_mat - rmright)
     df2$names <- rownames(rightrt_mat)
-    df2 <- pivot_longer(df,  cols = seq.int(ncol(df2)) - 1)
+    df2 <- pivot_longer(df2,  cols = seq.int(ncol(df2)) - 1)
     colnames(df2) <- c("Sequence", "Experiment", "RT_shift")
     
     # define outliers based on difference from boxplot
@@ -329,7 +329,7 @@ rTimeOutliers <- function(object,
         mutate(IQRl = quantile(x = RT_shift, c(0.25)))
     df2 <- df2 |> group_by(Experiment) |> 
         mutate(IQRu = quantile(x = RT_shift, c(0.75)))
-    df2$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df2$IQRu - df2$IQRl))
+    df2$outlier <- 1*(abs(df2$RT_shift) > 1.5 * (df2$IQRu - df2$IQRl))
     
     
     .out <- list(leftRT = df, rightRT = df2) 
@@ -378,4 +378,188 @@ plotrTimeOutliers <- function(object,
     
 
     return(list(leftRTgg = gg, rightRTgg = gg1))
+}    
+
+#' Monotonicity based outlier detection.
+#' @param object An object of class `QFeatures`
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' 
+#' 
+#' 
+#'
+computeMonotoneStats <- function(object,
+                                 experiment = NULL,
+                                 timepoints = NULL){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    monoStat <- matrix(NA,
+                      ncol = nrow(assay(object)), 
+                      nrow = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+        
+        # get columns for experiment
+        zz <- grep(pattern = experiment[k], x = colnames(object)[[1]])
+        
+        for (j in seq.int(nrow(assay(object)))){
+            test <- data.frame( y = assay(object)[j, zz], 
+                                x = timepoints)
+            res <- test |> group_by(x) |>
+                summarise(Mean = mean(y, na.rm = TRUE))
+            monoStat[k, j] <- sum(abs(order(res$Mean, decreasing = TRUE)
+                                     - order(res$x, decreasing = TRUE)))
+        }
+    }
+    
+    df <- vector(mode = "list", length = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+        pmult <- table(monoStat[k,])/length(monoStat[k, ])
+    
+        # the threshold we should apply to filer values
+        wh <- min(which(cumsum(pmult) > 0.95))
+        toThres <- as.numeric(names(pmult)[wh]) 
+    
+        df[[k]] <- data.frame(x = rownames(assay(object)), y = monoStat[k,])
+        df[[k]]$outlier <- as.character(1*(df[[k]]$y >= toThres))
+
+    }
+    
+    return(monotone = df)
+}
+#' Monotonicity based outlier detection, plot.
+#' @param object An object of class `QFeatures`
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' 
+#' 
+plotMonotoneStat <- function(object,
+                             experiment = NULL,
+                             timepoints = NULL){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    df <- computeMonotoneStats(object = object,
+                               experiment = experiment, 
+                               timepoints = timepoints)
+    
+    
+    ggMono <- lapply(seq.int(length(df)),
+                     function(z) 
+        ggplot(df[[z]], aes(x = x, y = y, col = outlier)) + 
+        geom_hline(aes(yintercept=0)) +
+        geom_segment(aes(x, y, xend=x, yend = y-y)) + 
+        theme_classic() + 
+        geom_point(aes(x, y), size=3) + 
+        scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+        geom_hline(yintercept = min(df[[z]]$y[df[[z]]$outlier == 1]), color = "black") + 
+        coord_flip() + 
+        ylab("Deviation from monotone") + 
+        ggtitle(paste0("Monotonicity outliers ", experiment[z])) + 
+        xlab("peptide"))
+    return(ggMono)
+}
+
+#' Ion Mobility time based outlier analysis
+#' 
+#' @param object An object of class `QFeatures`
+#' @param rightIMS A string indicating the right boundary of the
+#' ion mobility separation time. Defaults is "rightIMS".
+#' @param leftIMS A string indicating the left boundary of the ion mobility
+#' separation time. Default is "leftIMS".
+#' 
+#' @param searchIMS A string indicating the actual ion mobility search time. 
+#' The default is "Search.IMS"
+#' 
+imTimeOutlier <- function(object,
+                          rightIMS = "rightIMS",
+                          leftIMS = "leftIMS",
+                          searchIMS = "Search.IMS"){
+
+
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+ 
+    jj <- grep(pattern = rightIMS, x = rowDataNames(object)[[1]])
+    jj2 <- grep(pattern = leftIMS, x = rowDataNames(object)[[1]])
+    kk <- grep(pattern = searchIMS, x = rowDataNames(object)[[1]])
+    
+    leftIMS_mat <- as.matrix(rowData(object)[[1]][, c(jj2)])
+    rightIMS_mat <- as.matrix(rowData(object)[[1]][, c(jj)])
+    searchIMS_mat <- as.matrix(rowData(object)[[1]][, c(kk)])
+
+    imsleft <- rowMedians(leftIMS_mat)
+    df <- as_tibble(leftIMS_mat - imsleft)
+    df$names <- rownames(leftIMS_mat)
+    df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+    colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
+    
+    df <- df |> group_by(Experiment) |> 
+        mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+    df <- df |> group_by(Experiment) |> 
+        mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+    df$outlier <- 1*(abs(df$IMS_shift) > 1.5 * (df$IQRu - df$IQRl))
+
+    rmright <- rowMedians(rightIMS_mat)
+    df2 <- as_tibble(rightIMS_mat - rmright)
+    df2$names <- rownames(rightIMS_mat)
+    df2 <- pivot_longer(df2,  cols = seq.int(ncol(df2)) - 1)
+    colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
+
+    df2 <- df2 |> group_by(Experiment) |> 
+        mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+    df2 <- df2 |> group_by(Experiment) |> 
+        mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+    df2$outlier <- 1*(abs(df2$IMS_shift) > 1.5 * (df2$IQRu - df2$IQRl))
+
+    
+    .out <- list(leftIMS = df, rightIMS = df2) 
+    
+    return(.out)
+}
+
+#' Ion Mobility time based outlier analysis
+#' 
+#' @param object An object of class `QFeatures`
+#' @param rightIMS A string indicating the right boundary of the
+#' ion mobility separation time. Defaults is "rightIMS".
+#' @param leftIMS A string indicating the left boundary of the ion mobility
+#' separation time. Default is "leftIMS".
+#' 
+#' @param searchIMS A string indicating the actual ion mobility search time. 
+#' The default is "Search.IMS"
+#' 
+plotImTimeOutlier <- function(object,
+                          rightIMS = "rightIMS",
+                          leftIMS = "leftIMS",
+                          searchIMS = "Search.IMS"){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    
+    df <- imTimeOutlier(object = object,
+                        leftIMS = leftIMS,
+                        rightIMS = rightIMS,
+                        searchIMS = searchIMS)
+    
+    n <- length(unique(df[[1]]$Experiment))
+    
+    gg <- df[[1]] |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) +
+        geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Reds"))(n)) +
+        theme_classic() + ylab("IMS left shift") + 
+        coord_flip() + 
+        theme(text = element_text(size = 20))
+    
+    gg1 <- df[[2]] |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) +
+        geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Reds"))(n)) +
+                         theme_classic() + ylab("IMS right shift") + 
+        coord_flip() +
+        theme(text = element_text(size = 20))
+    
+    
+    return(list(leftIMSgg = gg, rightIMSgg = gg1))
 }    

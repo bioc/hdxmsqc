@@ -88,4 +88,31 @@ are Spectra that have variable intensity based on their mean intensity
 intensityOutlier <- intensityOutliers(object = BRD4df_filtered_imputed)
 plotIntensityOutliers(object = BRD4df_filtered_imputed)
 ```
+# Retention time analysis
+
+```{r,}
+dfrt <- rTimeOutliers(object = BRD4df_filtered_imputed)
+plotrTimeOutliers(object = BRD4df_filtered_imputed)
+```
+
+# Monotonicity statistics 
+
+This uses a statistic to detect differences from monotonic behavior. First,
+we need to specify the experimental design.
+
+```{r,}
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+```
+
+```{r,}
+monoStat <- computeMonotoneStats(object = BRD4df_filtered_imputed,
+                                 experiment = experiment, 
+                                 timepoints = timepoints)
+out <- plotMonotoneStat(object = BRD4df_filtered_imputed,
+                                 experiment = experiment, 
+                                 timepoints = timepoints)
+```
+
+
 
