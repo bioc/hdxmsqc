@@ -114,5 +114,27 @@ out <- plotMonotoneStat(object = BRD4df_filtered_imputed,
                                  timepoints = timepoints)
 ```
 
+# Ion Mobility Time analysis
+
+```{r,}
+imTimeOut <- imTimeOutlier(object = BRD4df_filtered_imputed)
+plotImTimeOutlier(object = BRD4df_filtered_imputed)
+```
+# Charge state correlation
+
+We check that charge states are correlated.
+
+```{r,}
+csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
+                              experiment = experiment,
+                              timepoints = timepoints)
+```
+
+# Using sequence overlap information are uptake values compatible
 
 
+```{r,}
+tocheck <- compatibleUptake(object = BRD4df_filtered_imputed,
+                 experiment = experiment,
+                 timepoints = timepoints)
+```

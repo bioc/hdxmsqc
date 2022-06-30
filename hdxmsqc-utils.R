@@ -509,7 +509,7 @@ imTimeOutlier <- function(object,
     df2 <- as_tibble(rightIMS_mat - rmright)
     df2$names <- rownames(rightIMS_mat)
     df2 <- pivot_longer(df2,  cols = seq.int(ncol(df2)) - 1)
-    colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
+    colnames(df2) <- c("Sequence", "Experiment", "IMS_shift")
 
     df2 <- df2 |> group_by(Experiment) |> 
         mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
@@ -562,4 +562,193 @@ plotImTimeOutlier <- function(object,
     
     
     return(list(leftIMSgg = gg, rightIMSgg = gg1))
-}    
+}
+
+#' Charge states should have correlated incorperation but they need not
+#' be exactly the same
+#' @param object An object of class `QFeatures`
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' 
+chargeCorrelationHdx <- function(object,
+                                 experiment = NULL,
+                                 timepoints = NULL){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    wh <- which(table(substr(rownames(object)[[1]], 
+                             1, nchar(rownames(object)[[1]]) - 1)) > 1)
+    chstate <- substr(rownames(object)[[1]], 
+                      nchar(rownames(object)[[1]]),
+                      nchar(rownames(object)[[1]]))
+    ch <- which(substr(rownames(object)[[1]],
+                       1,
+                       nchar(rownames(object)[[1]]) - 1) == names(wh)[2])
+    
+    out <- vector(mode = "list", length = length(experiment))
+    for (k in seq_along(experiment)){
+      zz <- grep(pattern = experiment[k], colnames(assay(object)))
+      df <- data.frame(y = c(assay(object)[ch, zz]),
+                       x = rep(timepoints, each = length(ch)),
+                       z = rep(chstate[ch], times = length(timepoints)))
+      df <- df |> group_by(x, z) |> mutate(replicate = row_number())
+      df_2 <- df |> filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate"),
+                                                names_from = z,
+                                                values_from = y)
+      .out <- cor(df_2[,-c(1:2)])
+      rownames(.out) <- names(wh)
+      out[[k]] <- .out
+    }
+    
+    names(out) <- experiment
+    return(out)
+    
+}
+
+#' Check whether deuterium uptakes are compatible with difference overlapping
+#' sequences.
+#' @param object An object of class `QFeatures`
+#' @param overlap How much overlap is required to check consistentcy. Default
+#' is sequences within 5 residues
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' 
+#'
+compatibleUptake <- function(object,
+                             overlap = 5,
+                             experiment = NULL,
+                             timepoints = NULL){
+    
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("overlap must be a numeric value"=is(overlap, "numeric"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    # Get locations of peptides
+    jj <- grep(pattern = "Start", x = rowDataNames(object)[[1]])
+    jj2 <- grep(pattern = "End", x = rowDataNames(object)[[1]])
+    start_mat <- as.matrix(rowData(object)[[1]][, c(jj)])
+    end_mat <- as.matrix(rowData(object)[[1]][, c(jj2)])
+    
+    # okay working but charge states too stringent only compare same charge.
+    seqs <- sapply(1:nrow(start_mat), function(x) seq.int(start_mat[x,1], end_mat[x,1]))
+    charges <- sapply(strsplit(rownames(object)[[1]], split = ""), function(x) x[length(x)])
+    flagged <- list()
+    
+    for (j in seq.int(nrow(start_mat))){
+        dout <- sapply(seq.int(nrow(start_mat)), function(x) 
+            max(length(seqs[[j]]), length(seqs[[x]])) - 
+                length(intersect(seqs[[j]], seqs[[x]])))
+        oi <- dout[dout < overlap]
+        charge_sub <- charges[dout < overlap]
+        ch <- charge_sub %in% charge_sub[which(oi== 0)[1]]
+        mat <- t(assay(object)[(dout < overlap), ])
+        
+        if (length(oi) == 1){
+            next
+        }
+        
+        d1 <- abs(mat - mat[, which(oi == 0)[1]])
+        test <- sapply(seq.int(ncol(start_mat)), function(x) {d1[x,] <= dout[(dout < 5)]})  
+        test <- test[ch,] # remove charge different charge state
+        flagged[[j]] <- which(!test, arr.ind = TRUE)
+    }
+    
+    flagged_df <- flagged[sapply(flagged, length) > 0]
+    names(flagged_df) <- sapply(flagged_df, function(x) rownames(x)[1])
+    whichtoflag <- sapply(flagged_df, function(x) x[,2])
+    
+    nm <- paste0(experiment, rep(timepoints, times = length(experiment)))
+    whichtoflag <- sapply(whichtoflag, function(x) {
+                                                 an <- names(x)
+                                                 x <- nm[x]
+                                                 names(x) <- an
+                                                 return(x)})             
+    
+    return(whichtoflag)
+}
+
+#' Spectral checking using data from HDsite
+#' 
+#' @param peaks a data.frame containing data exported from hdsite
+#' @param object An object of class `QFeatures`
+#' @param experiment A character vector indicating the experimental conditions
+#' @param mzCol The column in the peak information indicating the base mz value
+#' @param startRt The column indicatng the start of the retention time. Default
+#' is "Start.RT"
+#' @param endRT The column indicating the end of the retention time. Default is
+#' "End.RT
+#' @param charge The column indicating the charge information. Default is "z".
+#' @param incorpD The deuterium uptake value column. Default is "X.D.left".
+#' @param maxD The maximum allowed deuterium incorporation column. Default is "maxD". 
+spectraSimilarity <- function(peaks,
+                              object,
+                              experiment = NULL,
+                              mzCol = 14,
+                              startRT = "Start.RT",
+                              endRT = "End.RT",
+                              charge = "z",
+                              incorpD = "X.D.left",
+                              maxD = "maxD"){
+    
+    stopifnot("peaks must be a data.frame"=is(peaks, "data.frame"))
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    
+    # replace NaN with 0
+    peaks[peaks == "NaN"] <- 0
+    tidy.names <- make.names(colnames(peaks), unique = TRUE)
+    colnames(peaks) <- tidy.names
+    
+    # need experimental designs
+    exper <- grep(pattern = experiment, peaks$Protein.State)
+    peaks  <- peaks |> filter((Protein.State %in% exper))
+    
+    mzvec <- peaks[, mzCol]
+    sps <- DataFrame(msLevel = rep(1L, length(mzvec)),
+                     rtime =(peaks[,startRT] + peaks[,endRT]) / 2)
+    
+    # how many peaks are there
+    # assume everything after mzCol is peaks
+    k <- ncol(peaks) - mzCol
+    
+    sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, k), ncol = k) +
+                                       matrix(rep(seq.int(k) - 1,
+                                                  nrow(hdxsite2)),
+                                              ncol = k,
+                                              byrow =TRUE)/hdxsite2[, charge])))
+    
+    sps$intensity <- as.list(data.frame(t(peaks[, -seq.int(mzCol)])))
+    
+    # Make Spectra object
+    spd <- Spectra(sps)
+    
+    spd$Sequence <- object |> filter(Protein.State %in% exper) |> pull(Sequence)
+    spd$Charge <- peaks[, charge]
+    spd$intensity <- spd$intensity/max(intensity(spd), na.rm = TRUE) #normalisation
+    spd$incorp <- peaks[, incorpD]/peaks[, maxD]
+    spd$incorp[sps$incorp < 0] <- 0
+    
+    
+    testspectra <- lapply(seq.int(length(spd$Sequence)),
+                          function(z)
+        isotopicDistributionHDXfourier(sequence = spd$Sequence[z],
+                                       incorp = spd$incorp[z],
+                                       charge = spd$Charge[z]))
+    testspectramerge <- concatenateSpectra(x = testspectra)
+    testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity, na.rm = TRUE)
+    spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+        compareSpectra(x = spd[z, ],
+                       y = testspectramerge[z, ], ppm = 300),
+        FUN.VALUE = numeric(1))
+  
+    spd$score <- spectrascores
+    
+    return(list(observedSpectra = spd, matchedSpectra = testspectramerge))
+}
+
