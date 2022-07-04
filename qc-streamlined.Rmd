@@ -7,8 +7,21 @@ output: html_document
 
 # Introduction
 
+The `hdxmsqc` package is a quality control assessment package
+from hydrogen-deuterium exchange mass-spectrometry (HDX-MS) data. The functions
+look for outliers in retention time and ion mobility. They also examine missing
+values, mass errors, intensity based outliers, deviations of the data from
+monotonicity, the correlation of charge states, whether uptake values
+are coherent based on overlapping peptides and finally the similarity of the
+observed to the theoretical spectra observed. This package is designed
+to help those performing iterative quality control through manual inspection
+but also a set of metric and visualizations by which practitioners can use
+to demonstrate they have high quality data. 
+
 
 # packages
+
+The packages required are the following.
 
 ```{r,}
 require(S4Vectors)
@@ -20,7 +33,6 @@ require(ggplot2)
 require(Peptides)
 require(MASS)
 require(pheatmap)
-require(minpack.lm)
 require(Spectra)
 require(patchwork)
 source("hdxincoperationFourier.R")
@@ -29,25 +41,37 @@ source("hdxmsqc-utils.R")
 
 # Data
 
+We first load the data, as exported from HDExaminer. 
+
 ```{r,}
 BRD4uncurated <- data.frame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
 ```
 
-Tidy dataset, which improves the formatting and converts to wide format
+The following code chunkt tidies dataset, which improves the formatting and converts
+to wide format. It will also note the number of states, timepoints and peptides.
 ```{r,}
-BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated, proteinStates = c("wt", "iBET"))
+BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated,
+                                 proteinStates = c("wt", "iBET"))
 ```
-Columns with quantitative data
+The next code chunk extracts the columns with the quantitative data. 
 ```{r,}
-i <- grep(pattern = "X..Deut", x = names(BRD4uncurated_wide))
-```
-
-Make into a Qfeatures object
-```{r,}
-BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = "fnames")
+i <- grep(pattern = "X..Deut",
+          x = names(BRD4uncurated_wide))
 ```
 
-Visualisation
+We now parse the object into an object of class `Qfeatures`. This standardises
+the formatting of the data.
+```{r,}
+BRD4df <- readQFeatures(table = BRD4uncurated_wide,
+                        ecol = i,
+                        names = "Deuteration",
+                        fnames = "fnames")
+```
+
+# Visualisation
+
+A simple heatmap of our data can give us a sense of it.
+
 ```{r,}
 pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
 ```
@@ -62,6 +86,8 @@ Here, we can filter data that is not missing at random:
 ```{r,}
 BRD4df_filtered <- isMissingAtRandom(object = BRD4df)
 ```
+We can then replot missing-ness:
+
 ```{r,}
 plotMissing(object = BRD4df_filtered)
 ```
@@ -73,6 +99,8 @@ BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
 ```
 
 # Empirical vs Theoretical errors
+
+
 
 ```{r,}
 computeMassError(object = BRD4df_filtered_imputed)
@@ -137,4 +165,24 @@ csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
 tocheck <- compatibleUptake(object = BRD4df_filtered_imputed,
                  experiment = experiment,
                  timepoints = timepoints)
+```
+
+# Comparison of Spectra
+
+Load in some Spectra from hdxsite which should match those of HDExaminer
+```{r,}
+hdxsite <- data.frame(read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE, fileEncoding = 'UTF-8-BOM'))
+BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
+```
+
+```{r,}
+spectraCompare <- spectraSimilarity(peaks = hdxsite,
+                                    object = BRD4matched, 
+                                    experiment = experiment)
+```
+
+To visualise these spectra we can use the following function
+
+```{r,}
+plotSpectraMirror(spectraCompare$observedSpectra[1,], spectraCompare$matchedSpectra[1,], ppm = 300)
 ```

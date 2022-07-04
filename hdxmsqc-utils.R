@@ -674,7 +674,7 @@ compatibleUptake <- function(object,
 #' Spectral checking using data from HDsite
 #' 
 #' @param peaks a data.frame containing data exported from hdsite
-#' @param object An object of class `QFeatures`
+#' @param object a data.frame obtained from HDexaminer data 
 #' @param experiment A character vector indicating the experimental conditions
 #' @param mzCol The column in the peak information indicating the base mz value
 #' @param startRt The column indicatng the start of the retention time. Default
@@ -695,7 +695,6 @@ spectraSimilarity <- function(peaks,
                               maxD = "maxD"){
     
     stopifnot("peaks must be a data.frame"=is(peaks, "data.frame"))
-    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
     stopifnot("Must provide the experimental conditions"=!is.null(experiment))
     stopifnot("Must indicate the timepoints"=!is.null(timepoints))
     
@@ -706,8 +705,8 @@ spectraSimilarity <- function(peaks,
     colnames(peaks) <- tidy.names
     
     # need experimental designs
-    exper <- grep(pattern = experiment, peaks$Protein.State)
-    peaks  <- peaks |> filter((Protein.State %in% exper))
+    exper <- grep(pattern = paste(experiment, collapse = "|"), peaks$Protein.State)
+    peaks  <- peaks[exper, ]
     
     mzvec <- peaks[, mzCol]
     sps <- DataFrame(msLevel = rep(1L, length(mzvec)),
@@ -719,16 +718,17 @@ spectraSimilarity <- function(peaks,
     
     sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, k), ncol = k) +
                                        matrix(rep(seq.int(k) - 1,
-                                                  nrow(hdxsite2)),
+                                                  nrow(peaks)),
                                               ncol = k,
-                                              byrow =TRUE)/hdxsite2[, charge])))
+                                              byrow =TRUE)/peaks[, charge])))
     
     sps$intensity <- as.list(data.frame(t(peaks[, -seq.int(mzCol)])))
     
     # Make Spectra object
     spd <- Spectra(sps)
     
-    spd$Sequence <- object |> filter(Protein.State %in% exper) |> pull(Sequence)
+    #spd$Sequence <- object |> filter(Protein.State %in% exper) |> pull(Sequence)
+    spd$Sequence <- object |> pull(Sequence)
     spd$Charge <- peaks[, charge]
     spd$intensity <- spd$intensity/max(intensity(spd), na.rm = TRUE) #normalisation
     spd$incorp <- peaks[, incorpD]/peaks[, maxD]
