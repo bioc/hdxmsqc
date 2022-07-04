@@ -110,13 +110,23 @@ plotMassError(object = BRD4df_filtered_imputed)
 # Intensity based outlier detection
 
 Using linear-model based outlier detection we see whether there
-are Spectra that have variable intensity based on their mean intensity
+are Spectra that have variable intensity based on their mean intensity. A linear
+model is fitted to the log-mean and log-variance of the intensities. These
+should follow a linear trend. Cook's distance is used to determine outliers are
+consider if their distance is greater than 2/$\sqrt(n)$, where $n$ is the 
+number of peptides.
 
 ```{r,}
 intensityOutlier <- intensityOutliers(object = BRD4df_filtered_imputed)
 plotIntensityOutliers(object = BRD4df_filtered_imputed)
 ```
+
 # Retention time analysis
+
+Retention time outlier detection looks at the
+usual variability of retention time search window and the
+actual left/right windows of the retention time. Outliers are flagged
+if their retention time falls outside 1.5 * interquartile range.
 
 ```{r,}
 dfrt <- rTimeOutliers(object = BRD4df_filtered_imputed)
