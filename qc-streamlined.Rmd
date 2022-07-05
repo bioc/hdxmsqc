@@ -136,12 +136,16 @@ plotrTimeOutliers(object = BRD4df_filtered_imputed)
 # Monotonicity statistics 
 
 This uses a statistic to detect differences from monotonic behavior. First,
-we need to specify the experimental design.
+we need to specify the experimental design and the timepoints used. 
 
 ```{r,}
 experiment <- c("wt", "iBET")
 timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
 ```
+
+The monotonicity statistic measure the deviation from monotoncity. Whilst
+some deviation is expected from random fluctuations, it is worth double
+checking those that are strong deviates compare to the rest of the data.
 
 ```{r,}
 monoStat <- computeMonotoneStats(object = BRD4df_filtered_imputed,
@@ -150,9 +154,14 @@ monoStat <- computeMonotoneStats(object = BRD4df_filtered_imputed,
 out <- plotMonotoneStat(object = BRD4df_filtered_imputed,
                                  experiment = experiment, 
                                  timepoints = timepoints)
+out
 ```
 
 # Ion Mobility Time analysis
+
+In a similar analysis to the retention time analysis, for ion mobility time
+we can also see whether there are random deviation in the ion mobility windows.
+Again, we define outliers that deviate outside the typical 1.5 * IQR.
 
 ```{r,}
 imTimeOut <- imTimeOutlier(object = BRD4df_filtered_imputed)
@@ -160,16 +169,24 @@ plotImTimeOutlier(object = BRD4df_filtered_imputed)
 ```
 # Charge state correlation
 
-We check that charge states are correlated.
+We check that charge states are correlated. Whilst we don't expect exactly
+the same before - low correlation maybe concerning.
 
 ```{r,}
 csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
                               experiment = experiment,
                               timepoints = timepoints)
+csCor
 ```
 
 # Using sequence overlap information are uptake values compatible
 
+We can also check whether uptakes are compatible with overlapping peptides.
+The difference in uptake cannot be more different than the difference
+in the number of exchangeable amides. The default methodology only checks
+whether sequence with up-to 5 different exchangeable amides are compatible
+to keep run-times lower. Larger difference may indicate different 
+chemical changes or back-exchange properties. 
 
 ```{r,}
 tocheck <- compatibleUptake(object = BRD4df_filtered_imputed,
@@ -179,7 +196,16 @@ tocheck <- compatibleUptake(object = BRD4df_filtered_imputed,
 
 # Comparison of Spectra
 
-Load in some Spectra from hdxsite which should match those of HDExaminer
+In this section, we can directly examine the differences between the 
+theoretical spectra one would expect from the computed deuterium uptake and
+the actual observed spectra. Deviations observed in the spectra could 
+suggest contamination, false identifications or poor quality spectra.
+A score is generated using the cosine similarity between the spectra - which
+is equivalent to the normalized dot product. The spectra pairs can be 
+also be visualized. 
+
+
+Load in some Spectra from HDsite which should match those of HDExaminer
 ```{r,}
 hdxsite <- data.frame(read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE, fileEncoding = 'UTF-8-BOM'))
 BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
@@ -190,6 +216,14 @@ spectraCompare <- spectraSimilarity(peaks = hdxsite,
                                     object = BRD4matched, 
                                     experiment = experiment)
 ```
+
+
+The scores can be accesses as follows:
+
+```{r,}
+head(spectraCompare$observedSpectra$score)
+```
+
 
 To visualise these spectra we can use the following function
 
