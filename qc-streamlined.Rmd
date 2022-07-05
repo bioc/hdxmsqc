@@ -1,8 +1,17 @@
 ---
-title: "gc-tidying"
-author: "Oliver M. Crook"
-date: "17/06/2022"
-output: html_document
+title: "qc-tidying"
+author:
+- name: Oliver M. Crook
+package: hdxmsqc
+output:
+  BiocStyle::html_document:
+    toc_float: yes
+abstract: "This vignette describes how to pefrom quality control for
+ mass-spectrometry based  hydrogen deuterium exchange experiment. \n"
+vignette: |
+  %\VignetteIndexEntry{Qualityt control for differential hydrogen deuterium exchange mass spectrometry data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %%\VignetteKeywords{Mass Spectrometry, MS, MSMS, Proteomics, Metabolomics, Infrastructure, Quantitative} %\VignetteEncoding{UTF-8}
 ---
 
 # Introduction
@@ -103,7 +112,7 @@ BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
 
 
 ```{r,}
-computeMassError(object = BRD4df_filtered_imputed)
+massError <- computeMassError(object = BRD4df_filtered_imputed)
 plotMassError(object = BRD4df_filtered_imputed)
 ```
 
