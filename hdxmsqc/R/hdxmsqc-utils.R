@@ -1,11 +1,16 @@
 #' Function to curate and HDExaminer file so that in contains all the information
-#' in a sensible format.
+#' in a sensible format. This object can then be straightforwardly passed to
+#' a object of class `QFeatures`
 #' 
 #' 
 #' @param HDExaminerFile an object of class data.frame containing an HDExaminer
 #' data
 #' @param proteinStates a character vector indicating the protein states
-
+#' @md
+#' @rdname processHDE
+#' @author Oliver Crook
+#' @return A wide format data frame with HDExaminer data
+#' @export
 processHDE <- function(HDExaminerFile, proteinStates = NULL){
     
     stopifnot("Not a data.frame"=is(HDExaminerFile, "data.frame"))
@@ -118,13 +123,13 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
 #' missing value plot
 #' 
 #' @param object An object of class `QFeatures`
+#' @param ... Additional arguemnts to pheatmap
+#' @md
 #' 
 #' 
 #' 
-#' 
-#' 
-#' 
-#' 
+#' @author Oliver Crook
+#' @export
 plotMissing <- function(object, ...){
     
     stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))

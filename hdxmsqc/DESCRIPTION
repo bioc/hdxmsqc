@@ -1,0 +1,33 @@
+Package: hdxmsqc
+Type: Package
+Title: An R package for quality Control for hydrogen deuterium exchange 
+mass spectrometry experiments
+Version: 0.99.0
+Authors@R: c(person(family = "Crook", given = "Oliver M.",
+		                email = "oliver.crook@stats.ox.ac.uk",
+		                comment = c(ORCID = "0000-0001-5669-8506"),
+		                role = c("aut", "cre")))
+Description: The hdxmsqc package enables to analyise and visualise the quality
+of HDX-MS experiments. Either as a final quality check before downstream
+analysis and publication or as part of a interative procedure to determine
+the quality of the data.
+License: Apache 2.0
+Encoding: UTF-8
+LazyData: false
+Depends: R(>= 4.1), QFeatures, S4Vectors, Spectra
+Imports: 
+        dplyr,
+        tidyr,
+        ggplot2,
+        Mass
+        patchwork
+Suggests: 
+        RColorBrewer,
+        Pheatmap
+VignetteBuilder: knitr
+Roxygen: list(markdown=TRUE)
+RoxygenNote: 7.2.0
+biocViews: QualityControl,DataImport, Proteomics, MassSpectrometry
+BugReports: https://github.com/ococrook/hdxmsqc/issues
+URL: http://github.com/ococrook/hdxmsqc
+Language: en-US
