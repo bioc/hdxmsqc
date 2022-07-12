@@ -13,7 +13,8 @@ spectraSimilarity(
   endRT = "End.RT",
   charge = "z",
   incorpD = "X.D.left",
-  maxD = "maxD"
+  maxD = "maxD",
+  numSpectra = NULL
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ spectraSimilarity(
 
 \item{mzCol}{The column in the peak information indicating the base mz value}
 
+\item{startRT}{The column indicatng the start of the retention time. Default
+is "Start.RT"}
+
 \item{endRT}{The column indicating the end of the retention time. Default is
 "End.RT}
 
@@ -34,8 +38,11 @@ spectraSimilarity(
 
 \item{maxD}{The maximum allowed deuterium incorporation column. Default is "maxD".}
 
-\item{startRt}{The column indicatng the start of the retention time. Default
-is "Start.RT"}
+\item{numSpectra}{The number of spectra to analyse. Default is NULL in which
+all Spectra are analysed.}
+}
+\value{
+Two list of spectra observed and matching theoretical Spectra
 }
 \description{
 Spectral checking using data from HDsite

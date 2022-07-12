@@ -226,7 +226,8 @@ BRD4matched <- read.csv(system.file("extdata", "BRD4_RowChecked_20220628_HDE.csv
 ```{r,}
 spectraCompare <- spectraSimilarity(peaks = hdxsite,
                                     object = BRD4matched, 
-                                    experiment = experiment)
+                                    experiment = experiment,
+                                    numSpectra = 100)
 ```
 
 

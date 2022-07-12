@@ -7,9 +7,9 @@
 intensityOutliers(object, fcolIntensity = "Max.Inty")
 }
 \arguments{
-\item{An}{object of class \code{QFeatures}}
+\item{object}{An object of class \code{QFeatures}}
 
-\item{fcolItnensity}{character to intensity intensity columns. Default is
+\item{fcolIntensity}{character to intensity intensity columns. Default is
 "Max.Inty" and uses regular expressions to find relevant columns}
 }
 \value{

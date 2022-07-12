@@ -70,8 +70,8 @@ fourierIsotope <- function(elements,
     # make to size of isotopes required
     finalProb <- matrix(0, nrow = nrow(prob), ncol = isotopes)
     finalMass <- matrix(0, nrow = nrow(prob), ncol = isotopes)
-    finalProb[,1:4] <- prob
-    finalMass[,1:4] <- mass
+    finalProb[, seq.int(4)] <- prob
+    finalMass[, seq.int(4)] <- mass
     
     # isotope distribution of elements
     # fourier transform of probability
@@ -198,7 +198,7 @@ exchangeableAmides <- function(sequence) {
     n <- length(sequence)
     x <- vector(mode = "numeric", length = n)
     
-    for(i in 1:n) {
+    for(i in seq.int(n)) {
         seq_vector <- strsplit(as.character(sequence[i]), split = "")[[1]]
         x[i] <- length(na.omit(sub("P", NA, seq_vector))) - 2
     }

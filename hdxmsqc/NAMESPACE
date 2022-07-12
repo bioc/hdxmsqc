@@ -8,8 +8,16 @@ importFrom(Spectra,
            Spectra,
            plotSpectraMirror,
            concatenateSpectra,
-           compareSpectra)
+           compareSpectra, intensity)
 importFrom("grDevices", "colorRampPalette")
-    importFrom("methods", "is")
-    importFrom("stats", "cooks.distance", "cor", "fft", "filter", "lm",
+importFrom("methods", "is")
+importFrom("stats", "cooks.distance", "cor", "fft", "filter", "lm",
                "na.omit", "quantile", "var")
+importFrom("dplyr", "mutate", "group_by", "row_number", "summarise", "pull")
+importFrom("tidyr", "pivot_wider", "as_tibble", "pivot_longer")
+importFrom("QFeatures", "rowDataNames", "rowData<-", "filterFeatures")
+importFrom("S4Vectors", "DataFrame")
+importFrom("ggplot2", "ggplot", "aes", "geom_boxplot", "theme_classic","ylab",
+           "coord_flip", "theme", "element_text", "geom_hline", "geom_segment",
+           "geom_point", "scale_colour_manual", "ggtitle",
+           "xlab")

@@ -21,15 +21,19 @@ Imports:
         tidyr,
         ggplot2,
         MASS,
-        patchwork
+        patchwork,
+        BiocStyle,
+        knitr,
+        methods,
+        grDevices,
+        stats
 Suggests: 
         RColorBrewer,
-        pheatmap,
-        knitr
+        pheatmap
 VignetteBuilder: knitr
 Roxygen: list(markdown=TRUE)
 RoxygenNote: 7.2.0
-biocViews: QualityControl,DataImport, Proteomics, MassSpectrometry
+biocViews: QualityControl,DataImport, Proteomics, MassSpectrometry, Metabolomics
 BugReports: https://github.com/ococrook/hdxmsqc/issues
 URL: http://github.com/ococrook/hdxmsqc
 Language: en-US

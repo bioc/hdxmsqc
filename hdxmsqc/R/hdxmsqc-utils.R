@@ -36,11 +36,11 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
     # assumes data are stored as "x1-x2"
     left_right_Rt <- t(vapply(strsplit(HDExaminerFile$Actual.RT,
                                        fixed = TRUE, split = "-"),
-                              function(x) as.numeric(x[1:2]),
+                              function(x) as.numeric(x[seq.int(2)]),
                               FUN.VALUE = numeric(2))) 
     left_right_ims <-  t(vapply(strsplit(HDExaminerFile$IMS.Range,
                                          fixed = TRUE, split = "-"),
-                                function(x) as.numeric(x[1:2]),
+                                function(x) as.numeric(x[seq.int(2)]),
                                 FUN.VALUE = numeric(2))) 
 
     # Put in dataframe
@@ -632,7 +632,7 @@ chargeCorrelationHdx <- function(object,
       df_2 <- df |> dplyr::filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate"),
                                                 names_from = z,
                                                 values_from = y)
-      .out <- cor(df_2[,-c(1:2)])
+      .out <- cor(df_2[,-c(1,2)])
       rownames(.out) <- names(wh)
       out[[k]] <- .out
     }
@@ -671,7 +671,7 @@ compatibleUptake <- function(object,
     end_mat <- as.matrix(rowData(object)[[1]][, c(jj2)])
     
     # okay working but charge states too stringent only compare same charge.
-    seqs <- sapply(1:nrow(start_mat), function(x) seq.int(start_mat[x,1], end_mat[x,1]))
+    seqs <- sapply(seq.int(nrow(start_mat)), function(x) seq.int(start_mat[x,1], end_mat[x,1]))
     charges <- sapply(strsplit(rownames(object)[[1]], split = ""), function(x) x[length(x)])
     flagged <- list()
     
@@ -721,6 +721,9 @@ compatibleUptake <- function(object,
 #' @param charge The column indicating the charge information. Default is "z".
 #' @param incorpD The deuterium uptake value column. Default is "X.D.left".
 #' @param maxD The maximum allowed deuterium incorporation column. Default is "maxD".
+#' @param numSpectra The number of spectra to analyse. Default is NULL in which
+#' all Spectra are analysed.
+#' @return Two list of spectra observed and matching theoretical Spectra
 #' @md
 #' @author Oliver Crook
 #' @export 
@@ -732,7 +735,8 @@ spectraSimilarity <- function(peaks,
                               endRT = "End.RT",
                               charge = "z",
                               incorpD = "X.D.left",
-                              maxD = "maxD"){
+                              maxD = "maxD",
+                              numSpectra = NULL){
     
     stopifnot("peaks must be a data.frame"=is(peaks, "data.frame"))
     stopifnot("Must provide the experimental conditions"=!is.null(experiment))
@@ -774,20 +778,23 @@ spectraSimilarity <- function(peaks,
     spd$incorp <- peaks[, incorpD]/peaks[, maxD]
     spd$incorp[sps$incorp < 0] <- 0
     
+    if (is.null(numSpectra)){
+        numSpectra <- length(spd$Sequence)
+    }
     
-    testspectra <- lapply(seq.int(length(spd$Sequence)),
+    testspectra <- lapply(seq.int(numSpectra),
                           function(z)
         isotopicDistributionHDXfourier(sequence = spd$Sequence[z],
                                        incorp = spd$incorp[z],
                                        charge = spd$Charge[z]))
     testspectramerge <- concatenateSpectra(x = testspectra)
     testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity, na.rm = TRUE)
-    spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+    spectrascores <- vapply(seq.int(numSpectra), function(z)
         compareSpectra(x = spd[z, ],
                        y = testspectramerge[z, ], ppm = 300),
         FUN.VALUE = numeric(1))
   
-    spd$score <- spectrascores
+    spd$score <- c(spectrascores, rep(NA, times = length(spd$Sequence) - numSpectra))
     
     return(list(observedSpectra = spd, matchedSpectra = testspectramerge))
 }
