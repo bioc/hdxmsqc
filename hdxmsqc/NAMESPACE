@@ -1,1 +1,15 @@
 exportPattern("^[[:alpha:]]+")
+
+import(knitr)
+import(BiocStyle)
+
+importFrom(QFeatures, readQFeatures)
+importFrom(Spectra,
+           Spectra,
+           plotSpectraMirror,
+           concatenateSpectra,
+           compareSpectra)
+importFrom("grDevices", "colorRampPalette")
+    importFrom("methods", "is")
+    importFrom("stats", "cooks.distance", "cor", "fft", "filter", "lm",
+               "na.omit", "quantile", "var")

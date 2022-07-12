@@ -1,8 +1,14 @@
-## fourier transform approach to computing isotopic distribution
-
-
-
-
+#' fourier transform approach to computing isotopic distribution
+#' @param elements A list of elements
+#' @param incorp The deuterium incoperation
+#' @param num_exch_sites The number of exchangable amides. Default is 0.
+#' @param charge The charge state of the peptide
+#' @param isotopes The number of isotopes to compute. The default is NULL, in whiich
+#' a default heuristic is used to make a good guess that covers the expected peaks.
+#' @return A list of mass and intensity value corresponding to the isotope distribution
+#' @md
+#' @author Oliver Crook
+#' @export
 fourierIsotope <- function(elements,
                            incorp = 0,
                            num_exch_sites = 0,
@@ -89,7 +95,17 @@ fourierIsotope <- function(elements,
     
     return(list(intensity = Re(pout), mz = Re(mz)))
 }    
-
+#' fourier transform approach to computing isotopic distribution
+#' 
+#' @param sequence A peptide
+#' @param incorp The deuterium incoperation
+#' @param charge The charge state of the peptide
+#' @param custom custom amino acids can be provided here provide a list
+#' of the elements. 
+#' @return A list of mass and intensity value corresponding to the isotope distribution
+#' @md
+#' @author Oliver Crook
+#' @export
 isotopicDistributionHDXfourier <- function(sequence,
                                            incorp = 0,
                                            charge = 1, 

@@ -1,0 +1,600 @@
+---
+title: "Performing quality control on hdx-ms data"
+author: "Oliver M. Crook"
+date: "16/05/2022"
+output: html_document
+---
+
+# Introduction
+
+
+# packages
+
+```{r,}
+require(S4Vectors)
+require(dplyr)
+require(tidyr)
+require(QFeatures)
+require(RColorBrewer)
+require(ggplot2)
+require(Peptides)
+require(MASS)
+require(pheatmap)
+require(minpack.lm)
+require(Spectra)
+require(patchwork)
+source("hdxincoperationFourier.R")
+```
+
+# Data
+
+```{r,}
+BRD4uncurated <- DataFrame(read.csv(file = "inst/ELN55049_AllResultsTables_Uncurated.csv"))
+```
+
+We can now have a look at the .csv file.
+
+```{r,}
+head(BRD4uncurated)
+length(unique(BRD4uncurated$Sequence))
+```
+
+
+
+Convert n/a s to NA
+
+```{r,}
+BRD4uncurated[BRD4uncurated == "n/a"] <- NA
+```
+
+Convert Actual.RT/IMS.Range to left and right RT
+```{r,}
+BRD4uncurated$leftRT <- 0
+BRD4uncurated$rightRT <- 0
+BRD4uncurated$leftIMS <- 0
+BRD4uncurated$rightIMS <- 0
+```
+
+```{r,}
+left_right_Rt <- t(vapply(strsplit(BRD4uncurated$Actual.RT, fixed = TRUE, split = "-"), function(x) as.numeric(x[1:2]), FUN.VALUE = numeric(2))) 
+left_right_ims <-  t(vapply(strsplit(BRD4uncurated$IMS.Range, fixed = TRUE, split = "-"), function(x) as.numeric(x[1:2]), FUN.VALUE = numeric(2))) 
+```
+```{r,}
+BRD4uncurated[, c("leftRT", "rightRT")] <- left_right_Rt
+BRD4uncurated[, c("leftIMS", "rightIMS")] <- left_right_ims
+```
+
+spit out fully deuterated samples
+```{r,}
+BRD4uncurated_fd <- BRD4uncurated[BRD4uncurated$Deut.Time == "FD",]
+BRD4uncurated <- BRD4uncurated[BRD4uncurated$Deut.Time != "FD",]
+```
+
+convert times seconds, currently as character:
+```{r,}
+BRD4uncurated$Deut.Time <- vapply(strsplit(BRD4uncurated$Deut.Time, "s"), function(x) as.numeric(x), FUN.VALUE = numeric(1))
+```
+
+add in repliate numbers
+```{r,}
+BRD4uncurated <- BRD4uncurated |> group_by(Deut.Time, Sequence, Protein.State, Charge) |> mutate(replicate = row_number())
+
+```
+
+```{r,}
+BRD4uncurated$X..Deut[BRD4uncurated$Deut.. == ""] <- 0
+BRD4uncurated$Deut..[BRD4uncurated$Deut.. == ""] <- 0
+BRD4uncurated$Deut.. <- as.numeric(BRD4uncurated$Deut..)
+BRD4uncurated$X..Deut <- as.numeric(BRD4uncurated$X..Deut)
+```
+
+```{r,}
+BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "apo BRD4(1-477) wt"] <- "wt"
+BRD4uncurated$Protein.State[BRD4uncurated$Protein.State == "+iBET-151"] <- "iBET"
+```
+
+```{r,}
+BRD4uncurated_wide <- pivot_wider(data = BRD4uncurated, id_cols = c("Sequence", "Charge"), names_from = c("Protein.State", "Deut.Time", "replicate"), values_from = c("X..Deut", "Search.RT", "Actual.RT", "X..Spectra", "Search.IMS", "IMS.Range", "Max.Inty", "Exp.Cent", "Theor.Cent", "Score", "Confidence", "leftRT", "rightRT", "leftIMS", "rightIMS", "X..Spectra", "Start", "End"))
+```
+
+```{r,}
+BRD4uncurated_wide$fnames <- paste0(BRD4uncurated_wide$Sequence, BRD4uncurated_wide$Charge)
+```
+
+
+```{r,}
+i <- grep(pattern = "X..Deut", x = names(BRD4uncurated_wide))
+```
+
+```{r,}
+BRD4df <- readQFeatures(table = BRD4uncurated_wide, ecol = i, names = "Deuteration", fnames = "fnames")
+```
+```{r,}
+pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
+```
+# Examining missing values
+
+```{r,}
+na_mat <- 1*is.na(assay(BRD4df))
+pheatmap(na_mat, cluster_rows = FALSE, cluster_cols = FALSE, color = brewer.pal(n = 3, name = "Greys")[c(1,3)], legend_breaks = c(0,1), main = "Missing value plot", fontsize = 12)
+```
+missing at random vs not at random
+
+```{r,}
+table(rowSums(na_mat))
+to_filter_missing <- 1*(rowSums(na_mat) > (ncol(na_mat)/2))
+rowData(BRD4df)[[1]]$mnar <- to_filter_missing
+BRD4df_filtered <- filterFeatures(BRD4df, ~ to_filter_missing != 1) # filtering out missing now at random
+
+```
+
+```{r,}
+na_mat <- 1*is.na(assay(BRD4df_filtered))
+pheatmap(na_mat, cluster_rows = FALSE, cluster_cols = FALSE, color = brewer.pal(n = 3, name = "Greys")[c(1,3)], legend_breaks = c(0,1), main = "Missing value plot", fontsize = 12)
+```
+```{r,}
+BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
+```
+
+```{r,}
+pheatmap(assay(BRD4df_filtered_imputed), cluster_cols = TRUE, cluster_rows = FALSE, scale = "row")
+```
+Let's first look a empirical theoretical centroids
+
+```{r,}
+j <- grep(pattern = "Exp.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+k <- grep(pattern = "Theor.Cent", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+```
+
+ToDo: We need to threshold here before we can move forward with what we actually do here
+
+
+```{r,}
+deltaPPM <- ((as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,j]) - as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))/as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])) * 10^6
+plot(c(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k])), c(deltaPPM))
+
+ppmerror <- data.frame(x = c(t(as.matrix(rowData(BRD4df_filtered_imputed)[[1]][,k]))), y = c(t(deltaPPM)), sequence = rep(rownames(BRD4df_filtered_imputed)[[1]], each = ncol(assay(BRD4df_filtered_imputed))))
+
+ppmerror |> ggplot(aes(x = x, y = y, col = sequence)) + geom_point(size = 2, alpha = 0.8) + scale_color_manual(values = colorRampPalette(brewer.pal(n  = 11, name = "Set3"))(169)) + theme_classic() + theme(legend.position = "none") + xlab("Theoretical Centroid") + ylab("Empirical Error")
+
+```
+```{r,}
+ppmerror <- ppmerror |> group_by(sequence) |> mutate(mean = mean(y), var = var(y), max = max(y), min = min(y))
+```
+
+could easily be spotted by mean and variance deviations:
+```{r,}
+hist(ppmerror$var)
+hist(ppmerror$mean)
+ppmerror |> ggplot(aes(x = abs(mean), y = var, col = sequence)) + geom_point(size = 4, alpha = 0.8) + scale_color_manual(values = colorRampPalette(brewer.pal(n  = 11, name = "Set3"))(169)) + theme_classic() + theme(legend.position = "none") + xlab("absolute mean mass error") + ylab("Variance mass error")
+```
+
+```{r,}
+ii <-  grep(pattern = "Max.Inty", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+intensity_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, ii])
+plot(log(apply(intensity_mat, 1, mean)), log(apply(intensity_mat, 1, var)), ylab = "log var", xlab = "log mean", main = "intensity")
+```
+use cook distance to detect outliers
+
+```{r,}
+model <- lm(log(apply(intensity_mat, 1, var)) ~ log(apply(intensity_mat, 1, mean)))
+cookD <- cooks.distance(model)
+cookD <- data.frame(x = names(cookD), y = cookD)
+cookD$outlier <- as.character(1 * (cookD$y > 2/sqrt(nrow(cookD))))
+ggIntensity <- ggplot(cookD, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = 2/sqrt(nrow(cookD)), color = "black") + coord_flip() + 
+    ylab("cook's distance") + ggtitle("Intensity outliers") + xlab("peptide")
+
+ggIntensity
+
+```
+
+```{r,}
+plot(BRD4uncurated$X..Spectra, BRD4uncurated$Score, xlab = "Spectra", ylab = "Score") # should remove the data with no Spectra measured
+
+```
+
+# Are rentention times good
+
+```{r,}
+jj <- grep(pattern = "rightRT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+jj2 <- grep(pattern = "leftRT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+kk <- grep(pattern = "Search.RT", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+leftrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+rightrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+searchrt_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(kk)])
+```
+
+```{r,}
+rmleft <- rowMedians(leftrt_mat)
+pheatmap(leftrt_mat - rmleft, cluster_rows = FALSE, cluster_cols = FALSE)
+boxplot(leftrt_mat - rmleft)
+df <- as_tibble(leftrt_mat - rmleft)
+df$names <- rownames(leftrt_mat)
+df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+colnames(df) <- c("Sequence", "Experiment", "RT_shift")
+gg <- df |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Blues"))(ncol(leftrt_mat))) + theme_classic() + ylab("RT left shift") + coord_flip() + theme(text = element_text(size = 20))
+```
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+df$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+```{r,}
+rmright <- rowMedians(rightrt_mat)
+pheatmap(rightrt_mat - rmright, cluster_rows = FALSE, cluster_cols = FALSE)
+boxplot(rightrt_mat - rmright)
+df <- as_tibble(rightrt_mat - rmright)
+df$names <- rownames(rightrt_mat)
+df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+colnames(df) <- c("Sequence", "Experiment", "RT_shift")
+gg1 <- df |> ggplot(aes(x = Experiment, y = RT_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Blues"))(ncol(rightrt_mat))) + theme_classic() + ylab("RT right shift") + coord_flip() + theme(text = element_text(size = 20))
+```
+```{r,}
+gg + gg1
+```
+We need to actually compute the interquartile range and return outliers
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = RT_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = RT_shift, c(0.75)))
+df$outlier <- 1*(abs(df$RT_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+
+
+# Monotonicty statistics
+
+Nee to wrap this up slightly more nicely
+
+```{r,}
+#First define experiment and timepoints
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- matrix(NA,
+                   ncol = nrow(assay(BRD4df_filtered_imputed)), 
+                   nrow = length(experiment))
+
+for (k in seq.int(length(experiment))){
+    
+    # get columns for experiment
+    zz <- grep(pattern = experiment[k], x = colnames(BRD4df_filtered_imputed)[[1]])
+
+    for (j in seq.int(nrow(assay(BRD4df_filtered_imputed)))){
+        test <- data.frame( y = assay(BRD4df_filtered_imputed)[j, zz], 
+                            x = timepoints)
+        res2 <- test |> group_by(x) |> summarise(Mean = mean(y, na.rm = TRUE))
+        monoStat[k,j] <- sum(abs(order(res2$Mean, decreasing = TRUE) - order(res2$x, decreasing = TRUE)))
+    }
+}
+```
+
+
+```{r,}
+plot(monoStat[1,], lwd = 1)
+plot(table(monoStat[2,]), type = "h", lwd = 2, col = "red")
+pmult <- table(monoStat[1,])/length(monoStat[1,])
+ cumsum(pmult)
+plot(names(pmult), cumsum(pmult), cex = 2, type = "l", lwd = 2, ylab = "Cumulative density", xlab = "Monotonicity Statistics")
+ abline(h = 0.9, col = "red", lwd = 2)
+ 
+# the threshold we should apply to filer values
+wh <- min(which(cumsum(pmult) > 0.95))
+toThres <- as.numeric(names(pmult)[wh]) 
+
+df <- data.frame(x = rownames(assay(BRD4df_filtered_imputed)), y = monoStat[1,])
+df$outlier <- as.character(1*(df$y >= toThres))
+ggMono1 <-  ggplot(df, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = toThres, color = "black") + coord_flip() + 
+    ylab("Deviation from monotone") + ggtitle("Monotonicity outliers wt") + xlab("peptide")
+
+
+pmult <- table(monoStat[2,])/length(monoStat[2,])
+# the threshold we should apply to filer values
+wh <- min(which(cumsum(pmult) > 0.95))
+toThres <- as.numeric(names(pmult)[wh]) 
+
+df <- data.frame(x = rownames(assay(BRD4df_filtered_imputed)), y = monoStat[2,])
+df$outlier <- as.character(1*(df$y >= toThres))
+ggMono2 <-  ggplot(df, aes(x = x, y = y, col = outlier)) + geom_hline(aes(yintercept=0)) +
+    geom_segment(aes(x, y, xend=x, yend = y-y)) + theme_classic() + 
+    geom_point(aes(x, y), size=3) + scale_color_manual(values = brewer.pal(4, name = "Set2")) + 
+    geom_hline(yintercept = toThres, color = "black") + coord_flip() + 
+    ylab("Deviation from monotone") + ggtitle("Monotonicity outliers ") + xlab("peptide")
+ggMono2
+
+```
+
+
+
+# Why do neighbouring peptide deviate from monotonicity?
+
+Seems nothing is interesting, will leave this analysis
+
+```{r, eval = FALSE}
+j <- 130
+test <- data.frame( y= assay(BRD4df_filtered_imputed)[j, 1:18], x = rep(c(0, 15, 60, 600, 3600, 14000), each = 3))
+res <- isoreg(x = test$x, y = test$y)
+plot(res)
+
+percProline <- sapply(strsplit(rownames(assay(BRD4df_filtered_imputed)), ""), function(x) sum(x == "P")/(length(x) - 1))
+lengthSeq <- sapply(strsplit(rownames(assay(BRD4df_filtered_imputed)), ""), function(x) (length(x) - 1))
+plot(percProline, ideastat)
+plot(lengthSeq, ideastat)
+
+hy <- hydrophobicity(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rownames(BRD4df_filtered_imputed)[[1]]) - 1), scale = "octanolScale_pH8")
+cor.test(ideastat, percProline)
+cor.test(ideastat, hy)
+```
+
+# Ion Mobility statistics
+
+do what we did for RT
+
+```{r,}
+jj <- grep(pattern = "rightIMS", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+jj2 <- grep(pattern = "leftIMS", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+kk <- grep(pattern = "Search.IMS", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+leftIMS_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+rightIMS_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+searchIMS_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(kk)])
+```
+
+```{r,}
+imsleft <- rowMedians(leftIMS_mat)
+pheatmap(leftIMS_mat - imsleft, cluster_rows = FALSE, cluster_cols = FALSE)
+boxplot(leftIMS_mat - imsleft)
+df <- as_tibble(leftIMS_mat - imsleft)
+df$names <- rownames(leftIMS_mat)
+df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
+gg <- df |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Reds"))(ncol(leftIMS_mat))) + theme_classic() + ylab("IMS left shift") + coord_flip() + theme(text = element_text(size = 20))
+```
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+df$outlier <- 1*(abs(df$IMS_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+```{r,}
+rmright <- rowMedians(rightIMS_mat)
+pheatmap(rightIMS_mat - rmright, cluster_rows = FALSE, cluster_cols = FALSE)
+boxplot(rightIMS_mat - rmright)
+df <- as_tibble(rightIMS_mat - rmright)
+df$names <- rownames(rightIMS_mat)
+df <- pivot_longer(df,  cols = seq.int(ncol(df)) - 1)
+colnames(df) <- c("Sequence", "Experiment", "IMS_shift")
+gg1 <- df |> ggplot(aes(x = Experiment, y = IMS_shift, fill = Experiment)) + geom_boxplot(fill = colorRampPalette(brewer.pal(n = 9, name = "Reds"))(ncol(rightrt_mat))) + theme_classic() + ylab("IMS right shift") + coord_flip() + theme(text = element_text(size = 20))
+```
+
+
+```{r,}
+df <- df |> group_by(Experiment) |> mutate(IQRl = quantile(x = IMS_shift, c(0.25)))
+df <- df |> group_by(Experiment) |> mutate(IQRu = quantile(x = IMS_shift, c(0.75)))
+df$outlier <- 1*(abs(df$IMS_shift) > 1.5 * (df$IQRu - df$IQRl))
+```
+
+# Check charge states are compatible
+
+```{r,}
+wh <- which(table(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rownames(BRD4df_filtered_imputed)[[1]]) - 1)) > 1)
+chstate <- substr(rownames(BRD4df_filtered_imputed)[[1]],nchar(rownames(BRD4df_filtered_imputed)[[1]]), nchar(rownames(BRD4df_filtered_imputed)[[1]]))
+ch <- which(substr(rownames(BRD4df_filtered_imputed)[[1]],1, nchar(rownames(BRD4df_filtered_imputed)[[1]]) - 1) == names(wh)[2])
+
+zz <- grep(pattern = experiment[1], colnames(assay(BRD4df_filtered_imputed)))
+
+
+
+df <- data.frame(y = c(assay(BRD4df_filtered_imputed)[ch, zz]),
+                 x = rep(timepoints, each = length(ch)), z = rep(chstate[ch], times = length(timepoints)))
+df <- df |> group_by(x,z) |> mutate(replicate = row_number())
+df_2 <- df |> filter(x!=0) |> pivot_wider(id_cols = c("x", "replicate"),
+                                        names_from = z, values_from = y)
+df |> filter(x != 0 ) |> ggplot(aes(x = x, y = y, col = z)) + geom_point() + theme_classic() + scale_x_log10()
+
+cor(df_2[,-c(1:2)])
+
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r,}
+# Thinking about modelling charge states? This nees careful editting to make sense.
+
+data <- assay(BRD4df_filtered_imputed)[ch, 1:36]
+data <- longFormat(data)
+data$timepoint <- rep(rep(c(0, 15, 60, 600, 3600, 14000), each = 6), times = 2)
+data$replicates <- rep(rep(c(1, 2, 3), each = 2), 12)
+data$charge <- rep(c(3,4), times = 36)
+data$condition <- rep(c(1,2), each = 36)
+out1 <- nlsLM(data = data, formula = value ~ (a0 +  a * charge)*(1 - exp(-(b0 + b * charge) * timepoint ^ (p0 + p*charge))), start = list(a0 = 6, a = 1, b0 = 0.01, b = 0.01, p0 = 1, p = 0.01), lower = c(0, -1,0,-1,0,-1), algorithm = "LM")
+myPredict1 <- expand.grid(timepoint = seq(min(data$timepoint, 0), max(data$timepoint), 0.5), charge = c(3)) 
+myPredict2 <- expand.grid(timepoint = seq(min(data$timepoint, 0), max(data$timepoint), 0.5), charge = c(4))  
+#expand.grid here in case your model has more than one variable
+#Caution, extrapolating well beyond the data
+myPredict1$fit <- predict(out1, newdata = myPredict1)
+myPredict2$fit <- predict(out1, newdata = myPredict2)
+            gg <- ggplot(data, aes(y = value,
+                                   x = timepoint,
+                                   color = interaction(condition,charge))) + geom_point(size = 4) + theme_classic() + 
+                geom_line(data = myPredict1, aes(x = timepoint, y = fit),
+                          inherit.aes = FALSE, size = 2, col = "grey") + geom_line(data = myPredict2, aes(x = timepoint, y = fit),
+                          inherit.aes = FALSE, size = 2, col = "black") + scale_color_manual(values = brewer.pal(4, name = "Set2")) + scale_x_log10()
+gg
+
+datalist <- group_split(data, condition)
+            
+            nlmod <- lapply(datalist,  function(x){nonlin_mod <- 
+                try(nlsLM(data = x, 
+                        formula =  value ~ (a0 +  a * charge)*(1 - exp(-(b0 + b * charge) * timepoint ^ (p0 + p*charge))), 
+                        start = list(a0 = 6, a = 1, b0 = 0.01, b = 0.01, p0 = 1, p = 0.01),
+                        control = nls.lm.control(maxiter = 500, ftol = 10^{-8}),
+                        trace = FALSE, 
+                        lower = c(0, -1,0,-1,0,-1), algorithm = "LM", na.action = na.exclude))})
+    myPredict <- lapply(1:length(nlmod), function(j)
+                expand.grid(timepoint = seq(min(data$timepoint, 0), max(data$timepoint), 0.5), charge = 3))
+        myPredictc <- lapply(1:length(nlmod), function(j)
+                expand.grid(timepoint = seq(min(data$timepoint, 0), max(data$timepoint), 0.5), charge = 4))  
+            #expand.grid here in case your model has more than one variable
+            #Caution, extrapolating well beyond the data
+            myPredict <- lapply(1:(length(nlmod)*2), function(j){
+                myPredict[[j]] <- predict(nlmod[[c(1,2,1,2)[j]]], newdata = c(myPredict, myPredictc)[[j]])
+                return(myPredict[[j]])}) 
+myPredictjoin <- do.call(cbind, myPredict)
+            colnames(myPredictjoin) <- c(1,2,3,4)
+            myPredictjoin <- data.frame(myPredictjoin)
+            myPredictjoin$timepoint <- unlist(expand.grid(timepoint = seq(min(data$timepoint, 0), max(data$timepoint), 0.5)))
+            myPredict_long <- myPredictjoin %>% pivot_longer(cols = 1:4)
+            colnames(myPredict_long) <- c("timepoint", "condition", "fit")
+            df <- data.frame(myPredict_long)
+            
+            df$condition <- gsub("X", "", df$condition)
+            df$condition <- levels(interaction(c(1,2), c(3,4)))[as.numeric(df$condition)]
+            
+            gg <- ggplot(data, aes(y = value,
+                                   x = timepoint,
+                                   color = interaction(condition,charge))) + geom_point(size = 4) + theme_classic() + 
+                geom_line(data = df, aes(x = timepoint, y = fit, color = condition), inherit.aes = FALSE,  size = 2) + 
+                labs(x = "Exposure", y = "Deuterium Incoperation", color = "condition",
+                     title = paste(unique(data$rowname), ",", collapse = " ")) + 
+                scale_color_manual(values = brewer.pal(n = 4, name = "Set2"))
+
+```
+
+
+
+
+# We need to check whether deuteration profiles are actually possible given
+# sequence information
+
+```{r,}
+jj <- grep(pattern = "Start", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+jj2 <- grep(pattern = "End", x = rowDataNames(BRD4df_filtered_imputed)[[1]])
+start_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj)])
+end_mat <- as.matrix(rowData(BRD4df_filtered_imputed)[[1]][, c(jj2)])
+
+# okay working but charge states to stringent only compare same charge.
+seqs <- sapply(1:nrow(start_mat), function(x) seq.int(start_mat[x,1], end_mat[x,1]))
+charges <- sapply(strsplit(rownames(BRD4df_filtered_imputed)[[1]], split = ""), function(x) x[length(x)])
+flagged <- list()
+
+for (j in seq.int(nrow(start_mat))) {
+    dout <- sapply(seq.int(nrow(start_mat)), function(x) 
+        max(length(seqs[[j]]), length(seqs[[x]])) - 
+                      length(intersect(seqs[[j]], seqs[[x]])))
+    oi <- dout[dout < 5]
+    charge_sub <- charges[dout < 5]
+    ch <- charge_sub %in% charge_sub[which(oi== 0)[1]]
+    mat <- t(assay(BRD4df_filtered_imputed)[(dout < 5),])
+    if (length(oi) == 1){
+        next
+    }
+    
+    d1 <- abs(mat - mat[, which(oi == 0)[1]])
+    test <- sapply(seq.int(ncol(start_mat)), function(x) {d1[x,] <= dout[(dout < 5)]})  
+    test <- test[ch,] # remove charge diferent charge state
+    flagged[[j]] <- which(!test, arr.ind = TRUE)
+}
+
+flagged_df <- flagged[sapply(flagged, length) > 0]
+names(flagged_df) <- sapply(flagged_df, function(x) rownames(x)[1])
+whichtoflag <- sapply(flagged_df, function(x) x[,2])
+
+```
+
+```{r,}
+hdxsite <- read.csv("inst/HDSite_UndeuteratedData.txt", skip = 1, sep = "\t", header = FALSE)
+hdxsite_names <- read.csv("inst/HDSite_UndeuteratedData.txt", nrows = 1, sep = "\t", header = FALSE)
+hdxsite <- data.frame(hdxsite)
+colnames(hdxsite)[seq_along(hdxsite_names)] <- hdxsite_names[1,]
+
+```
+
+```{r,}
+scoreThreshold <- 0.9
+mzvec <- hdxsite[,14]
+sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite$`Start RT` + hdxsite$`End RT`) / 2)
+sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 19), ncol = 19) + matrix(rep(seq.int(1:19) - 1, nrow(hdxsite)), ncol = 19, byrow = TRUE)/hdxsite$z)))
+hdxsite[hdxsite == "NaN"] <- 0
+sps$intensity <- as.list(data.frame(t(hdxsite[,-(1:14)])))
+
+spd <- Spectra(sps)
+spd$Sequence <- BRD4uncurated |> filter(Deut.Time == "0s", Protein.State == "apo BRD4(1-477) wt") |> pull(Sequence)
+spd$Charge <- hdxsite$z
+spd$intensity <- spd$intensity/max(intensity(spd))
+
+testspectra <- lapply(seq.int(length(spd$Sequence)), function(z)
+                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = 0, charge = spd$Charge[z]))
+testspectramerge <- concatenateSpectra(x = testspectra)
+testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity)
+plotSpectraMirror(x = spd[1,], y= testspectramerge[1,])
+spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+                                compareSpectra(x = spd[z, ],
+                                               y = testspectramerge[z, ]),
+                        FUN.VALUE = numeric(1))
+which(spectrascores < 0.9)
+par(mfrow = c(4,4))
+sapply(1:16, function(z)
+    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]]))
+
+```
+```{r,}
+hdxsite2 <- read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE)
+hdxsite2 <- data.frame(hdxsite2)
+```
+
+# up to here, do we need to filter out charge states to get everything to add up?
+# still not adding up, need to chat to Nathan to work this out.
+```{r,}
+scoreThreshold <- 0.9
+hdxsite2[hdxsite2 == "NaN"] <- 0
+tidy.names <- make.names(colnames(hdxsite2), unique = TRUE)
+colnames(hdxsite2) <- tidy.names
+hdxsite2  <- hdxsite2 |> filter((Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")))
+
+mzvec <- hdxsite2[,14]
+sps <- DataFrame(msLevel = rep(1L, length(mzvec)), rtime =(hdxsite2$Start.RT + hdxsite2$End.RT) / 2)
+sps$mz <- as.list(data.frame(t(matrix(rep(mzvec, 33), ncol = 33) + matrix(rep(seq.int(1:33) - 1, nrow(hdxsite2)), ncol = 33, byrow =TRUE)/hdxsite2$z)))
+
+sps$intensity <- as.list(data.frame(t(hdxsite2[,-(1:14)])))
+
+BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
+
+spd <- Spectra(sps)
+spd$Sequence <- BRD4matched|> filter(Protein.State %in% c("+iBET-151", "apo BRD4(1-477) wt")) |> pull(Sequence)
+spd$Charge <- hdxsite2$z
+spd$intensity <- spd$intensity/max(intensity(spd), na.rm = TRUE)
+spd$incorp <- hdxsite2$X.D.left/hdxsite2$maxD
+spd$incorp[sps$incorp < 0] <- 0
+
+
+testspectra <- lapply(seq.int(length(spd$Sequence)), function(z)
+                      isotopicDistributionHDXfourier(sequence = spd$Sequence[z], incorp = spd$incorp[z], charge = spd$Charge[z]))
+testspectramerge <- concatenateSpectra(x = testspectra)
+testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity)
+plotSpectraMirror(x = spd[1,], y= testspectramerge[1,])
+spectrascores <- vapply(seq.int(length(spd$Sequence)), function(z)
+                                compareSpectra(x = spd[z, ],
+                                               y = testspectramerge[z, ], ppm = 300),
+                        FUN.VALUE = numeric(1))
+which(spectrascores < 0.9)
+par(mfrow = c(4,4))
+sapply(1000:1015, function(z)
+    plotSpectraMirror(x = spd[which(spectrascores < 0.9)[z]], y= testspectramerge[which(spectrascores < 0.9)[z]], main = spectrascores[which(spectrascores < 0.9)[z]], ppm = 300))
+
+```

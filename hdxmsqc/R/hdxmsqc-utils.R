@@ -127,7 +127,7 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
 #' @md
 #' 
 #' 
-#' 
+#' @return a pheatmap showing missing values
 #' @author Oliver Crook
 #' @export
 plotMissing <- function(object, ...){
@@ -153,8 +153,11 @@ plotMissing <- function(object, ...){
 #'threshold which is half the number of columns.
 #'@param filter A logial indicating whether to filter out data that is deemed
 #' missing not at random
-#' 
-#' 
+#'@md 
+#'
+#'@return Adds a missing not at random indicator column  
+#'@author Oliver Crook 
+#'@export 
 isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
     
     stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
@@ -183,7 +186,10 @@ isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
 #'experimental centroid
 #'@param tCentroid character string indicating column identifier for 
 #'theoretical centroid
-#'
+#'@return The error difference between the empirical and theoretical centroid
+#'@md
+#'@author Oliver Crook
+#'@export
 computeMassError <- function(object,
                              eCentroid = "Exp.Cent",
                              tCentroid = "Theor.Cent"){
@@ -209,7 +215,10 @@ computeMassError <- function(object,
 #'experimental centroid
 #'@param tCentroid character string indicating column identifier for 
 #'theoretical centroid
-#'
+#'@return a ggplot2 object which can be used to visualise the 
+#'@md
+#'@author Oliver Crook
+#'@export
 plotMassError <- function(object,
                           eCentroid = "Exp.Cent",
                           tCentroid = "Theor.Cent"){
@@ -232,11 +241,14 @@ plotMassError <- function(object,
     return(gg)
 }    
 #' Intensity based deviations
-#' @param An object of class `QFeatures`
-#' @param fcolItnensity character to intensity intensity columns. Default is
+#' 
+#' @param object An object of class `QFeatures`
+#' @param fcolIntensity character to intensity intensity columns. Default is
 #' "Max.Inty" and uses regular expressions to find relevant columns
-#' 
-#' 
+#' @return The Cook's distance to characterise outleirs 
+#' @md
+#' @author Oliver Crook
+#' @export
 intensityOutliers <- function(object,
                               fcolIntensity = "Max.Inty"){
     
@@ -257,11 +269,14 @@ intensityOutliers <- function(object,
 }
 
 #' Intensity based deviation plot
+#' 
 #' @param object An object of class `QFeatures`
 #' @param fcolIntensity character to intensity intensity columns. Default is
 #' "Max.Inty" and uses regular expressions to find relevant columns
-#' 
-#' 
+#' @return A ggplot2 object showing intensity based outliers 
+#' @md
+#' @author Oliver Crook
+#' @export
 plotIntensityOutliers <- function(object,
                                   fcolIntensity = "Max.Inty"){
     
@@ -291,8 +306,11 @@ plotIntensityOutliers <- function(object,
 #' of retneton time search. Default is "rightRT".
 #' @param searchRT The actual search retention time pattern.
 #'  Default is "Search.RT"
-#'      
-    
+#'  
+#' @return A list indicating the retention time based outliers. 
+#' @md
+#' @author Oliver Crook
+#' @export
 rTimeOutliers <- function(object,
                           leftRT = "leftRT",
                           rightRT = "rightRT",
@@ -351,8 +369,12 @@ rTimeOutliers <- function(object,
 #' of retneton time search. Default is "rightRT".
 #' @param searchRT The actual search retention time pattern.
 #'  Default is "Search.RT"
+#' 
+#' @return a ggplot2 object showing distribution of retention time windows.
 #'  
-
+#' @md
+#' @author Oliver Crook
+#' @export
 plotrTimeOutliers <- function(object,
                               leftRT = "leftRT",
                               rightRT = "rightRT",
@@ -390,9 +412,9 @@ plotrTimeOutliers <- function(object,
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
-#' 
-#' 
-#'
+#' @md
+#' @author Oliver Crook
+#' @export
 computeMonotoneStats <- function(object,
                                  experiment = NULL,
                                  timepoints = NULL){
@@ -441,7 +463,9 @@ computeMonotoneStats <- function(object,
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
-#' 
+#' @md
+#' @author Oliver Crook
+#' @export
 plotMonotoneStat <- function(object,
                              experiment = NULL,
                              timepoints = NULL){
@@ -481,7 +505,9 @@ plotMonotoneStat <- function(object,
 #' 
 #' @param searchIMS A string indicating the actual ion mobility search time. 
 #' The default is "Search.IMS"
-#' 
+#' @md
+#' @author Oliver Crook
+#' @export
 imTimeOutlier <- function(object,
                           rightIMS = "rightIMS",
                           leftIMS = "leftIMS",
@@ -538,7 +564,9 @@ imTimeOutlier <- function(object,
 #' 
 #' @param searchIMS A string indicating the actual ion mobility search time. 
 #' The default is "Search.IMS"
-#' 
+#' @md
+#' @author Oliver Crook
+#' @export 
 plotImTimeOutlier <- function(object,
                           rightIMS = "rightIMS",
                           leftIMS = "leftIMS",
@@ -574,7 +602,9 @@ plotImTimeOutlier <- function(object,
 #' @param object An object of class `QFeatures`
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
-#' 
+#' @md
+#' @author Oliver Crook
+#' @export
 chargeCorrelationHdx <- function(object,
                                  experiment = NULL,
                                  timepoints = NULL){
@@ -620,7 +650,9 @@ chargeCorrelationHdx <- function(object,
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
-#'
+#' @md
+#' @author Oliver Crook
+#' @export
 compatibleUptake <- function(object,
                              overlap = 5,
                              experiment = NULL,
@@ -682,13 +714,16 @@ compatibleUptake <- function(object,
 #' @param object a data.frame obtained from HDexaminer data 
 #' @param experiment A character vector indicating the experimental conditions
 #' @param mzCol The column in the peak information indicating the base mz value
-#' @param startRt The column indicatng the start of the retention time. Default
+#' @param startRT The column indicatng the start of the retention time. Default
 #' is "Start.RT"
 #' @param endRT The column indicating the end of the retention time. Default is
 #' "End.RT
 #' @param charge The column indicating the charge information. Default is "z".
 #' @param incorpD The deuterium uptake value column. Default is "X.D.left".
-#' @param maxD The maximum allowed deuterium incorporation column. Default is "maxD". 
+#' @param maxD The maximum allowed deuterium incorporation column. Default is "maxD".
+#' @md
+#' @author Oliver Crook
+#' @export 
 spectraSimilarity <- function(peaks,
                               object,
                               experiment = NULL,

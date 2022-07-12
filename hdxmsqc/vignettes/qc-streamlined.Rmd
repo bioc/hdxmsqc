@@ -1,0 +1,239 @@
+---
+title: "qc-tidying"
+author:
+- name: Oliver M. Crook
+package: hdxmsqc
+output:
+  BiocStyle::html_document:
+    toc_float: yes
+abstract: "This vignette describes how to pefrom quality control for
+ mass-spectrometry based  hydrogen deuterium exchange experiment. \n"
+vignette: |
+  %\VignetteIndexEntry{Qualityt control for differential hydrogen deuterium exchange mass spectrometry data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %%\VignetteKeywords{Mass Spectrometry, MS, MSMS, Proteomics, Metabolomics, Infrastructure, Quantitative} %\VignetteEncoding{UTF-8}
+---
+
+# Introduction
+
+The `hdxmsqc` package is a quality control assessment package
+from hydrogen-deuterium exchange mass-spectrometry (HDX-MS) data. The functions
+look for outliers in retention time and ion mobility. They also examine missing
+values, mass errors, intensity based outliers, deviations of the data from
+monotonicity, the correlation of charge states, whether uptake values
+are coherent based on overlapping peptides and finally the similarity of the
+observed to the theoretical spectra observed. This package is designed
+to help those performing iterative quality control through manual inspection
+but also a set of metric and visualizations by which practitioners can use
+to demonstrate they have high quality data. 
+
+
+# packages
+
+The packages required are the following.
+
+```{r,}
+require(hdxmsqc)
+require(S4Vectors)
+require(dplyr)
+require(tidyr)
+require(QFeatures)
+require(RColorBrewer)
+require(ggplot2)
+require(MASS)
+require(pheatmap)
+require(Spectra)
+require(patchwork)
+```
+
+# Data
+
+We first load the data, as exported from HDExaminer. 
+
+```{r,}
+BRD4uncurated <- data.frame(read.csv(system.file("extdata", "ELN55049_AllResultsTables_Uncurated.csv", package = "hdxmsqc", mustWork = TRUE)))
+```
+
+The following code chunkt tidies dataset, which improves the formatting and converts
+to wide format. It will also note the number of states, timepoints and peptides.
+```{r,}
+BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated,
+                                 proteinStates = c("wt", "iBET"))
+```
+The next code chunk extracts the columns with the quantitative data. 
+```{r,}
+i <- grep(pattern = "X..Deut",
+          x = names(BRD4uncurated_wide))
+```
+
+We now parse the object into an object of class `Qfeatures`. This standardises
+the formatting of the data.
+```{r,}
+BRD4df <- readQFeatures(table = BRD4uncurated_wide,
+                        ecol = i,
+                        names = "Deuteration",
+                        fnames = "fnames")
+```
+
+# Visualisation
+
+A simple heatmap of our data can give us a sense of it.
+
+```{r,}
+pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
+```
+# Examining missing values
+
+Here, we can plot where the missing values are:
+```{r,}
+plotMissing(object = BRD4df)
+```
+
+Here, we can filter data that is not missing at random:
+```{r,}
+BRD4df_filtered <- isMissingAtRandom(object = BRD4df)
+```
+We can then replot missing-ness:
+
+```{r,}
+plotMissing(object = BRD4df_filtered)
+```
+The values that are missing are all at the zero time-points where deuterium
+uptake should be 0, we can simply impute these values.
+
+```{r,}
+BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
+```
+
+# Empirical vs Theoretical errors
+
+
+
+```{r,}
+massError <- computeMassError(object = BRD4df_filtered_imputed)
+plotMassError(object = BRD4df_filtered_imputed)
+```
+
+# Intensity based outlier detection
+
+Using linear-model based outlier detection we see whether there
+are Spectra that have variable intensity based on their mean intensity. A linear
+model is fitted to the log-mean and log-variance of the intensities. These
+should follow a linear trend. Cook's distance is used to determine outliers are
+consider if their distance is greater than 2/$\sqrt(n)$, where $n$ is the 
+number of peptides.
+
+```{r,}
+intensityOutlier <- intensityOutliers(object = BRD4df_filtered_imputed)
+plotIntensityOutliers(object = BRD4df_filtered_imputed)
+```
+
+# Retention time analysis
+
+Retention time outlier detection looks at the
+usual variability of retention time search window and the
+actual left/right windows of the retention time. Outliers are flagged
+if their retention time falls outside 1.5 * interquartile range.
+
+```{r,}
+dfrt <- rTimeOutliers(object = BRD4df_filtered_imputed)
+plotrTimeOutliers(object = BRD4df_filtered_imputed)
+```
+
+# Monotonicity statistics 
+
+This uses a statistic to detect differences from monotonic behavior. First,
+we need to specify the experimental design and the timepoints used. 
+
+```{r,}
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+```
+
+The monotonicity statistic measure the deviation from monotoncity. Whilst
+some deviation is expected from random fluctuations, it is worth double
+checking those that are strong deviates compare to the rest of the data.
+
+```{r,}
+monoStat <- computeMonotoneStats(object = BRD4df_filtered_imputed,
+                                 experiment = experiment, 
+                                 timepoints = timepoints)
+out <- plotMonotoneStat(object = BRD4df_filtered_imputed,
+                                 experiment = experiment, 
+                                 timepoints = timepoints)
+out
+```
+
+# Ion Mobility Time analysis
+
+In a similar analysis to the retention time analysis, for ion mobility time
+we can also see whether there are random deviation in the ion mobility windows.
+Again, we define outliers that deviate outside the typical 1.5 * IQR.
+
+```{r,}
+imTimeOut <- imTimeOutlier(object = BRD4df_filtered_imputed)
+plotImTimeOutlier(object = BRD4df_filtered_imputed)
+```
+# Charge state correlation
+
+We check that charge states are correlated. Whilst we don't expect exactly
+the same before - low correlation maybe concerning.
+
+```{r,}
+csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
+                              experiment = experiment,
+                              timepoints = timepoints)
+csCor
+```
+
+# Using sequence overlap information are uptake values compatible
+
+We can also check whether uptakes are compatible with overlapping peptides.
+The difference in uptake cannot be more different than the difference
+in the number of exchangeable amides. The default methodology only checks
+whether sequence with up-to 5 different exchangeable amides are compatible
+to keep run-times lower. Larger difference may indicate different 
+chemical changes or back-exchange properties. 
+
+```{r,}
+tocheck <- compatibleUptake(object = BRD4df_filtered_imputed,
+                 experiment = experiment,
+                 timepoints = timepoints)
+```
+
+# Comparison of Spectra
+
+In this section, we can directly examine the differences between the 
+theoretical spectra one would expect from the computed deuterium uptake and
+the actual observed spectra. Deviations observed in the spectra could 
+suggest contamination, false identifications or poor quality spectra.
+A score is generated using the cosine similarity between the spectra - which
+is equivalent to the normalized dot product. The spectra pairs can be 
+also be visualized. 
+
+
+Load in some Spectra from HDsite which should match those of HDExaminer
+```{r,}
+hdxsite <- data.frame(read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE, fileEncoding = 'UTF-8-BOM'))
+BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
+```
+
+```{r,}
+spectraCompare <- spectraSimilarity(peaks = hdxsite,
+                                    object = BRD4matched, 
+                                    experiment = experiment)
+```
+
+
+The scores can be accesses as follows:
+
+```{r,}
+head(spectraCompare$observedSpectra$score)
+```
+
+
+To visualise these spectra we can use the following function
+
+```{r,}
+plotSpectraMirror(spectraCompare$observedSpectra[1,], spectraCompare$matchedSpectra[1,], ppm = 300)
+```
