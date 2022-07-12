@@ -629,7 +629,7 @@ chargeCorrelationHdx <- function(object,
                        x = rep(timepoints, each = length(ch)),
                        z = rep(chstate[ch], times = length(timepoints)))
       df <- df |> group_by(x, z) |> mutate(replicate = row_number())
-      df_2 <- df |> filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate"),
+      df_2 <- df |> dplyr::filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate"),
                                                 names_from = z,
                                                 values_from = y)
       .out <- cor(df_2[,-c(1:2)])

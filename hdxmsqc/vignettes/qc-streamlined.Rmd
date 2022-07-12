@@ -214,8 +214,13 @@ also be visualized.
 
 Load in some Spectra from HDsite which should match those of HDExaminer
 ```{r,}
-hdxsite <- data.frame(read.csv("inst/BRD4_RowChecked_20220628_HDsite.csv", header = TRUE, fileEncoding = 'UTF-8-BOM'))
-BRD4matched <- read.csv(file = "inst/BRD4_RowChecked_20220628_HDE.csv", header = TRUE, fileEncoding = 'UTF-8-BOM')
+
+hdxsite <- data.frame(read.csv(system.file("extdata", "BRD4_RowChecked_20220628_HDsite.csv",
+                                           package = "hdxmsqc", mustWork = TRUE),
+                               header = TRUE, fileEncoding = 'UTF-8-BOM'))
+BRD4matched <- read.csv(system.file("extdata", "BRD4_RowChecked_20220628_HDE.csv",
+                                           package = "hdxmsqc", mustWork = TRUE),
+                               header = TRUE, fileEncoding = 'UTF-8-BOM')
 ```
 
 ```{r,}

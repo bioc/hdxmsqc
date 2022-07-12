@@ -7,10 +7,11 @@ Authors@R: c(person(family = "Crook", given = "Oliver M.",
 		                email = "oliver.crook@stats.ox.ac.uk",
 		                comment = c(ORCID = "0000-0001-5669-8506"),
 		                role = c("aut", "cre")))
-Description: The hdxmsqc package enables to analyise and visualise the quality
+Description: The hdxmsqc package enables us to analyse and visualise the quality
  of HDX-MS experiments. Either as a final quality check before downstream
  analysis and publication or as part of a interative procedure to determine
- the quality of the data.
+ the quality of the data. The package builds on the QFeatures and Spectra
+ packages to integrate with other mass-spectrometry data.
 License: file LICENSE
 Encoding: UTF-8
 LazyData: false
