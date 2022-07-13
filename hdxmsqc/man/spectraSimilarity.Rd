@@ -14,7 +14,9 @@ spectraSimilarity(
   charge = "z",
   incorpD = "X.D.left",
   maxD = "maxD",
-  numSpectra = NULL
+  numSpectra = NULL,
+  ppm = 300,
+  BPPARAM = bpparam()
 )
 }
 \arguments{

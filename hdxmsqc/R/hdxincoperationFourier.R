@@ -205,3 +205,105 @@ exchangeableAmides <- function(sequence) {
     
     return(x)	
 }
+
+isotopicDistributionHDXfourier <- function(sequence,
+                                           incorp = 0,
+                                           charge = 1, 
+                                           custom = list(code = NULL, elements = NULL)) {
+    
+    if(length(custom$elements != 0)) {
+        custom_elements <- c(C = 0, H = 0, N = 0, O = 0, S = 0, P = 0)
+        custom_elements[names(custom$elements)] <- custom$elements
+    }
+    
+    if(charge < 0 | charge > 8) stop("charge must be between 1 and 8")
+    
+    # create vector for sequences and holder for element annotations
+    seq_vector <- strsplit(sequence, split = "")[[1]]
+    x <- c(C = 0, H = 0, N = 0, O = 0, S = 0, P = 0)
+    
+    # Update x with amino acid information
+    for(i in seq.int(length(seq_vector))) {
+        if(seq_vector[i] == "A") x <- x + c(C = 3, H = 5, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "R") x <- x + c(C = 6, H =12, N = 4, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "N") x <- x + c(C = 4, H = 6, N = 2, O = 2, S = 0, P = 0)
+        if(seq_vector[i] == "D") x <- x + c(C = 4, H = 5, N = 1, O = 3, S = 0, P = 0)
+        if(seq_vector[i] == "C") x <- x + c(C = 3, H = 5, N = 1, O = 1, S = 1, P = 0) 
+        if(seq_vector[i] == "E") x <- x + c(C = 5, H = 7, N = 1, O = 3, S = 0, P = 0)
+        if(seq_vector[i] == "Q") x <- x + c(C = 5, H = 8, N = 2, O = 2, S = 0, P = 0)
+        if(seq_vector[i] == "G") x <- x + c(C = 2, H = 3, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "H") x <- x + c(C = 6, H = 7, N = 3, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "I") x <- x + c(C = 6, H =11, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "L") x <- x + c(C = 6, H =11, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "K") x <- x + c(C = 6, H =12, N = 2, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "M") x <- x + c(C = 5, H = 9, N = 1, O = 1, S = 1, P = 0)
+        if(seq_vector[i] == "F") x <- x + c(C = 9, H = 9, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "P") x <- x + c(C = 5, H = 7, N = 1, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "S") x <- x + c(C = 3, H = 5, N = 1, O = 2, S = 0, P = 0)
+        if(seq_vector[i] == "T") x <- x + c(C = 4, H = 7, N = 1, O = 2, S = 0, P = 0)
+        if(seq_vector[i] == "W") x <- x + c(C =11, H =10, N = 2, O = 1, S = 0, P = 0)
+        if(seq_vector[i] == "Y") x <- x + c(C = 9, H = 9, N = 1, O = 2, S = 0, P = 0)
+        if(seq_vector[i] == "V") x <- x + c(C = 5, H = 9, N = 1, O = 1, S = 0, P = 0)
+        
+        if(length(custom$elements != 0))
+            if(seq_vector[i] == custom$code) x <- x + custom_elements    
+    }
+    
+    ## add N-terminal H and C-terminal OH
+    elements <- x + c(C = 0, H = 2, N = 0, O = 1, S = 0, P = 0) 
+    
+    # get the number of exchangeable amides
+    num_exch_sites <- exchangeableAmides(sequence)
+    
+    ## compute distribution using fourier method 
+    res  <- fourierIsotope(elements = elements,
+                           incorp = incorp,
+                           num_exch_sites = num_exch_sites,
+                           charge = charge,
+                           isotopes = NULL)
+    
+    intensity <- as.numeric(res$intensity)
+    mz <- as.numeric(res$mz)
+    mz <- mz[!(intensity < 10^{-8})]
+    omz <- order(mz)
+    mz <- mz[omz]
+    intensity <- intensity[!(intensity < 10^{-8})]
+    intensity <- intensity[omz]
+    
+    # generate spectra object
+    spec <- DataFrame(
+        msLevel = c(1L),
+        charge = charge,
+        sequence = sequence)
+    
+    spec$mz <- list(mz)
+    spec$intensity <-  list(intensity)
+
+    return(spec)
+}
+#' generate Spectra using a fourier transform
+#' @param sequences A vector of peptide sequences
+#' @param incorps A vector of deuterium incoperation
+#' @param charges A vector of charge states of the peptide
+#' @return A Spectra object corresponding to the isotope distributions
+#' @md
+#' @author Oliver Crook
+#' @export
+generateSpectra <- function(sequences,
+                            incorps, 
+                            charges,
+                            customs = list(code = NULL, elements = NULL)){
+    
+    n <- length(sequences)
+    out <- lapply(seq.int(n), function(n)
+                        isotopicDistributionHDXfourier(sequence = sequences[n],
+                                                       incorp = incorps[n],
+                                                       charge = charges[n],
+                                                       custom = list(code = NULL, elements = NULL)))
+    
+    spd <- do.call(rbind, out)
+    spec <- Spectra(spd)
+    
+    return(spec)
+}
+

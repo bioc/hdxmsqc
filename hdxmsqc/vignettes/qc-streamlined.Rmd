@@ -54,7 +54,7 @@ We first load the data, as exported from HDExaminer.
 BRD4uncurated <- data.frame(read.csv(system.file("extdata", "ELN55049_AllResultsTables_Uncurated.csv", package = "hdxmsqc", mustWork = TRUE)))
 ```
 
-The following code chunkt tidies dataset, which improves the formatting and converts
+The following code chunk tidies dataset, which improves the formatting and converts
 to wide format. It will also note the number of states, timepoints and peptides.
 ```{r,}
 BRD4uncurated_wide <- processHDE(HDExaminerFile = BRD4uncurated,
@@ -227,7 +227,7 @@ BRD4matched <- read.csv(system.file("extdata", "BRD4_RowChecked_20220628_HDE.csv
 spectraCompare <- spectraSimilarity(peaks = hdxsite,
                                     object = BRD4matched, 
                                     experiment = experiment,
-                                    numSpectra = 100)
+                                    numSpectra = NULL)
 ```
 
 

@@ -723,6 +723,8 @@ compatibleUptake <- function(object,
 #' @param maxD The maximum allowed deuterium incorporation column. Default is "maxD".
 #' @param numSpectra The number of spectra to analyse. Default is NULL in which
 #' all Spectra are analysed.
+#' @param ppm The ppm error
+#' @param BPPARAM Bioconductor parallel. 
 #' @return Two list of spectra observed and matching theoretical Spectra
 #' @md
 #' @author Oliver Crook
@@ -736,7 +738,9 @@ spectraSimilarity <- function(peaks,
                               charge = "z",
                               incorpD = "X.D.left",
                               maxD = "maxD",
-                              numSpectra = NULL){
+                              numSpectra = NULL,
+                              ppm = 300,
+                              BPPARAM = bpparam()){
     
     stopifnot("peaks must be a data.frame"=is(peaks, "data.frame"))
     stopifnot("Must provide the experimental conditions"=!is.null(experiment))
@@ -782,20 +786,16 @@ spectraSimilarity <- function(peaks,
         numSpectra <- length(spd$Sequence)
     }
     
-    testspectra <- lapply(seq.int(numSpectra),
-                          function(z)
-        isotopicDistributionHDXfourier(sequence = spd$Sequence[z],
-                                       incorp = spd$incorp[z],
-                                       charge = spd$Charge[z]))
-    testspectramerge <- concatenateSpectra(x = testspectra)
-    testspectramerge$intensity <- testspectramerge$intensity/max(testspectramerge$intensity, na.rm = TRUE)
-    spectrascores <- vapply(seq.int(numSpectra), function(z)
-        compareSpectra(x = spd[z, ],
-                       y = testspectramerge[z, ], ppm = 300),
-        FUN.VALUE = numeric(1))
+    testspectra <- generateSpectra(sequences = spd$Sequence[seq.int(numSpectra)],
+                                       incorps = spd$incorp[seq.int(numSpectra)],
+                                       charges = spd$Charge[seq.int(numSpectra)])
+    testspectra$intensity <- testspectra$intensity/max(testspectra$intensity, na.rm = TRUE)
+    spectrascores <- bplapply(seq.int(numSpectra), function(z)
+        Spectra::compareSpectra(x = spd[z, ],
+                       y = testspectra[z, ], ppm = ppm))
   
     spd$score <- c(spectrascores, rep(NA, times = length(spd$Sequence) - numSpectra))
     
-    return(list(observedSpectra = spd, matchedSpectra = testspectramerge))
+    return(list(observedSpectra = spd, matchedSpectra = testspectra))
 }
 
