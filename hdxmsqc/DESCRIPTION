@@ -20,8 +20,6 @@ Imports:
         dplyr,
         tidyr,
         ggplot2,
-        MASS,
-        patchwork,
         BiocStyle,
         knitr,
         methods,
@@ -29,7 +27,9 @@ Imports:
         stats
 Suggests: 
         RColorBrewer,
-        pheatmap
+        pheatmap,
+        MASS,
+        patchwork,
 VignetteBuilder: knitr
 Roxygen: list(markdown=TRUE)
 RoxygenNote: 7.2.0

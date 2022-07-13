@@ -19,5 +19,5 @@ importFrom("QFeatures", "rowDataNames", "rowData<-", "filterFeatures")
 importFrom("S4Vectors", "DataFrame")
 importFrom("ggplot2", "ggplot", "aes", "geom_boxplot", "theme_classic","ylab",
            "coord_flip", "theme", "element_text", "geom_hline", "geom_segment",
-           "geom_point", "scale_colour_manual", "ggtitle",
+           "geom_point", "scale_color_manual", "ggtitle",
            "xlab")
