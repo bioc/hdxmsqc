@@ -243,3 +243,17 @@ To visualise these spectra we can use the following function
 ```{r,}
 plotSpectraMirror(spectraCompare$observedSpectra[1,], spectraCompare$matchedSpectra[1,], ppm = 300)
 ```
+```{r,}
+qctable <- qualityControl(object = BRD4df_filtered_imputed, 
+                           massError = massError,
+                           intensityOutlier = intensityOutlier,
+                           retentionOutlier = dfrt,
+                           monotonicityStat = monoStat,
+                           mobilityOutlier = imTimeOut,
+                           chargeCorrelation = csCor,
+                           sequenceCheck = tocheck,
+                           spectraCheck = spectraCompare,
+                           experiment = experiment,
+                           timepoints = timepoints )
+```
+

@@ -42,6 +42,10 @@ is "Start.RT"}
 
 \item{numSpectra}{The number of spectra to analyse. Default is NULL in which
 all Spectra are analysed.}
+
+\item{ppm}{The ppm error}
+
+\item{BPPARAM}{Bioconductor parallel options.}
 }
 \value{
 Two list of spectra observed and matching theoretical Spectra

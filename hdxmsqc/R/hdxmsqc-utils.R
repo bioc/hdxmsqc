@@ -724,7 +724,7 @@ compatibleUptake <- function(object,
 #' @param numSpectra The number of spectra to analyse. Default is NULL in which
 #' all Spectra are analysed.
 #' @param ppm The ppm error
-#' @param BPPARAM Bioconductor parallel. 
+#' @param BPPARAM Bioconductor parallel options. 
 #' @return Two list of spectra observed and matching theoretical Spectra
 #' @md
 #' @author Oliver Crook
@@ -794,7 +794,12 @@ spectraSimilarity <- function(peaks,
         Spectra::compareSpectra(x = spd[z, ],
                        y = testspectra[z, ], ppm = ppm))
   
-    spd$score <- c(spectrascores, rep(NA, times = length(spd$Sequence) - numSpectra))
+    spd$score <- c(unlist(spectrascores), rep(NA, times = length(spd$Sequence) - numSpectra))
+    spd$experiment <- peaks$Protein.State
+    spd$DeutTime <- peaks$Deut.Time
+    spd$replicate <- as_tibble(spectraData(spd)) |>
+        group_by(Sequence, Charge, experiment, DeutTime) |>
+        mutate(replicate = row_number()) |> pull(replicate)
     
     return(list(observedSpectra = spd, matchedSpectra = testspectra))
 }

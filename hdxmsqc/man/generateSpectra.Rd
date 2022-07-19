@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdxincoperationFourier.R
 \name{generateSpectra}
 \alias{generateSpectra}
-\title{fourier transform approach to computing isotopic distribution}
+\title{generate Spectra using a fourier transform}
 \usage{
 generateSpectra(
   sequences,
@@ -17,12 +17,14 @@ generateSpectra(
 \item{incorps}{A vector of deuterium incoperation}
 
 \item{charges}{A vector of charge states of the peptide}
+
+\item{customs}{Custom elements supplied as a list}
 }
 \value{
 A Spectra object corresponding to the isotope distributions
 }
 \description{
-fourier transform approach to computing isotopic distribution
+generate Spectra using a fourier transform
 }
 \author{
 Oliver Crook

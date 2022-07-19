@@ -285,6 +285,7 @@ isotopicDistributionHDXfourier <- function(sequence,
 #' @param sequences A vector of peptide sequences
 #' @param incorps A vector of deuterium incoperation
 #' @param charges A vector of charge states of the peptide
+#' @param customs Custom elements supplied as a list
 #' @return A Spectra object corresponding to the isotope distributions
 #' @md
 #' @author Oliver Crook
