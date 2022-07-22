@@ -44,7 +44,7 @@ qualityControl(
 \item{timepoints}{The timepoints used in the analysis, must include repeat
 for replicates}
 
-\item{undeuterated}{A logical indicating whether only the deuterated data
+\item{undeuterated}{A logical indicating whether only the undeuterated data
 should be exported}
 }
 \value{

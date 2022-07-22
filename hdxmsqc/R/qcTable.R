@@ -12,7 +12,7 @@
 #' @param experiment The experimental conditions.
 #' @param timepoints The timepoints used in the analysis, must include repeat
 #' for replicates
-#' @param undeuterated A logical indicating whether only the deuterated data 
+#' @param undeuterated A logical indicating whether only the undeuterated data 
 #' should be exported 
 #' @return An object of class `DataFrame` containing a summary of the quality
 #' control results.
@@ -104,9 +104,9 @@ qualityControl <- function(object,
     spectraCheck$observedSpectra <- spectraCheck$observedSpectra[spectraCheck$observedSpectra$DeutTime != "FD",]
 
     # convert times seconds, currently as character:
-    #spectraCheck$observedSpectra$DeutTime <- vapply(strsplit(spectraCheck$observedSpectra$DeutTime, "s"),
-    #                                   function(x) as.numeric(x),
-    #                                   FUN.VALUE = numeric(1))
+    spectraCheck$observedSpectra$DeutTime <- vapply(strsplit(spectraCheck$observedSpectra$DeutTime, "s"),
+                                       function(x) as.numeric(x),
+                                       FUN.VALUE = numeric(1))
     
     for (j in seq_along(experiment)){
         i <- grep(experiment[j], spectraCheck$observedSpectra$experiment)
