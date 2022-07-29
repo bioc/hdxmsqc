@@ -228,11 +228,14 @@ plotMassError <- function(object,
     ppmerror <- computeMassError(object = object,
                                  eCentroid = eCentroid,
                                  tCentroid = tCentroid)
+    
+    
+    n <- nrow(object[[1]])
     gg <- ppmerror |> ggplot(aes(x = x, y = y, col = sequence)) +
         geom_point(size = 2, alpha = 0.8) + 
         scale_color_manual(values = 
                                colorRampPalette(brewer.pal(n  = 11, 
-                                                           name = "Set3"))(169)) +
+                                                           name = "Set3"))(n)) +
         theme_classic() + 
         theme(legend.position = "none") + 
         xlab("Theoretical Centroid") + 

@@ -51,36 +51,59 @@ qualityControl <- function(object,
     QCtable$End <-0
     QCtable[, c("Start", "End")] <- startend[QCtable$sequence,]
     
-    QCtable$massCheck <- 1 * (abs(massError$y) > 300)
+    if (is.null(massErrorr)){
+        QCtable$massCheck <- 0
+    } else{
+        QCtable$massCheck <- 1 * (abs(massError$y) > 300)
+    }    
 
-    iOut <- which(QCtable$sequence %in%
+    if (is.null(intensityOutlier)){
+        QCtable$intensityCheck <- 0 
+    } else{
+        iOut <- which(QCtable$sequence %in%
                       intensityOutlier$x[intensityOutlier$outlier == 1])
     
-    QCtable$intensityCheck <- 0
-    QCtable$intensityCheck[iOut] <- 1
+        QCtable$intensityCheck <- 0
+        QCtable$intensityCheck[iOut] <- 1
+    }
+
+    if (is.null(retentionOutlier)){
+        QCtable$retentionOutlier <- 0
+    } else{
+        QCtable$retentionOutlier <- apply(rbind(retentionOutlier$leftRT$outlier,
+                                    retentionOutlier$rightRT$outlier), 2, max)
+    }
     
-    QCtable$retentionOutlier <- apply(rbind(retentionOutlier$leftRT$outlier,
-                                            retentionOutlier$rightRT$outlier), 2, max)
-    
-    
-    QCtable$monotoncityStat <- 0
+
+    if (is.null(monotonicityStat)){
+        QCtable$monotonicityStat <- 0
+    } else{
+            QCtable$monotonicityStat <- 0
     for (i in seq_along(experiment)){
           monoOut <- which(QCtable$sequence %in% 
                          monotonicityStat[[i]]$x[monotonicityStat[[i]]$outlier == 1])
           wh <- which(QCtable$experiment %in% experiment[[i]])
           
-    n <- length(QCtable$monotoncityStat[intersect(wh, monoOut)])      
-    QCtable$monotoncityStat[intersect(wh, monoOut)] <- rep(1, n)
+    n <- length(QCtable$monotonicityStat[intersect(wh, monoOut)])      
+    QCtable$monotonicityStat[intersect(wh, monoOut)] <- rep(1, n)
+    }
     }
     
-    
-    QCtable$mobilityOutlier <- apply(rbind(mobilityOutlier$leftIMS$outlier,
+    if (is.null(mobilityOutlier)){
+        QCtable$mobilityOutlier <- 0
+    } else {
+            
+        QCtable$mobilityOutlier <- apply(rbind(mobilityOutlier$leftIMS$outlier,
                                     mobilityOutlier$rightIMS$outlier), 2, 
                                    max)
-    
+    }
+
+    if (is.null(chargeCorrelation)){
+        QCtable$chargecorrelation <- 
+    } else{
     QCtable$chargecorrelation <- 0
     for (i in seq_along(experiment)){
-        cRes <- rowSums(csCor[[1]] < 0.9) > 1
+        cRes <- rowSums(chargeCorrelation[[1]] < 0.9) > 1
         wC <- cRes[cRes]
         seq <- sapply(strsplit(QCtable$sequence, split = ""),
                       function(x) paste(x[seq.int(length(x)) - 1],
@@ -88,17 +111,27 @@ qualityControl <- function(object,
         QCtable$chargecorrelation[QCtable$experiment %in% experiment[[i]]][wC] <- 1
     }
     
-    QCtable$sequenceCheck <- 0
-    for (j in seq_along(sequenceCheck)){
-        ex <- gsub("([0-9]+).*$","", sequenceCheck[[j]])
-        time <- as.numeric(gsub(".*?([0-9]+).*", "\\1", sequenceCheck[[j]]))
-    
-        whseqCheck <- which((QCtable$sequence %in% names(sequenceCheck[[j]])) &
-                            (QCtable$timepoints %in% time) &
-                            (QCtable$experiment %in% ex))
-    
-        QCtable$sequenceCheck[whseqCheck] <- 1 
+        
+        
     }
+    
+    if (is.null(sequenceCheck)){
+        QCtable$sequenceCheck <- 0
+    } else{
+            QCtable$sequenceCheck <- 0
+        for (j in seq_along(sequenceCheck)){
+            ex <- gsub("([0-9]+).*$","", sequenceCheck[[j]])
+            time <- as.numeric(gsub(".*?([0-9]+).*", "\\1", sequenceCheck[[j]]))
+        
+            whseqCheck <- which((QCtable$sequence %in% names(sequenceCheck[[j]])) &
+                                (QCtable$timepoints %in% time) &
+                                (QCtable$experiment %in% ex))
+        
+            QCtable$sequenceCheck[whseqCheck] <- 1 
+        }
+    }
+
+
 
     # spit out fully deuterated samples
     spectraCheck$observedSpectra <- spectraCheck$observedSpectra[spectraCheck$observedSpectra$DeutTime != "FD",]
@@ -108,28 +141,33 @@ qualityControl <- function(object,
                                        function(x) as.numeric(x),
                                        FUN.VALUE = numeric(1))
     
-    for (j in seq_along(experiment)){
-        i <- grep(experiment[j], spectraCheck$observedSpectra$experiment)
-        spectraCheck$observedSpectra$experiment[i] <- experiment[j]
-    }
+    if (is.null(spectraCheck)){
+        QCtable$score <- 0
+        
+    } else {
+        for (j in seq_along(experiment)){
+            i <- grep(experiment[j], spectraCheck$observedSpectra$experiment)
+            spectraCheck$observedSpectra$experiment[i] <- experiment[j]
+        }
     
     charge <- sapply(strsplit(QCtable$sequence, split = ""),
                                     function(x) paste(x[length(x)],
                                                       sep = "", collapse = ""))
     QCtable$score <- NA
     
-    for (j in seq.int(nrow(QCtable))){
-        wh <- spectraCheck$observedSpectra$Sequence == seq[j] &
-            spectraCheck$observedSpectra$Charge == charge[j]
-        wh2 <- spectraCheck$observedSpectra$DeutTime == QCtable$timepoints[j] &
-            spectraCheck$observedSpectra$experiment == QCtable$experiment[j] &
-            spectraCheck$observedSpectra$replicate == QCtable$replicate[j]
-        QCtable$score[j] <- max(spectraCheck$observedSpectra$score[which(wh & wh2)],
+        for (j in seq.int(nrow(QCtable))){
+            wh <- spectraCheck$observedSpectra$Sequence == seq[j] &
+                spectraCheck$observedSpectra$Charge == charge[j]
+            wh2 <- spectraCheck$observedSpectra$DeutTime == QCtable$timepoints[j] &
+                spectraCheck$observedSpectra$experiment == QCtable$experiment[j] &
+                spectraCheck$observedSpectra$replicate == QCtable$replicate[j]
+            QCtable$score[j] <- max(spectraCheck$observedSpectra$score[which(wh & wh2)],
                                 0) # give 0 to missing spectra
-        
+        }
     }
+
     
-    QCtable$flagged <- rowSums(as.matrix(QCtable[,-(c(seq.int(6), which(colnames(QCtable) == "score")))]))
+    QCtable$flagged <- rowSums(as.matrix(QCtable[, -(c(seq.int(6), which(colnames(QCtable) == "score")))]))
     
     if(isTRUE(undeuterated)){
         QCtable <- QCtable[QCtable$timepoints == 0,]
