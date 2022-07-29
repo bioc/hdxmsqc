@@ -51,7 +51,7 @@ qualityControl <- function(object,
     QCtable$End <-0
     QCtable[, c("Start", "End")] <- startend[QCtable$sequence,]
     
-    if (is.null(massErrorr)){
+    if (is.null(massError)){
         QCtable$massCheck <- 0
     } else{
         QCtable$massCheck <- 1 * (abs(massError$y) > 300)
@@ -99,7 +99,7 @@ qualityControl <- function(object,
     }
 
     if (is.null(chargeCorrelation)){
-        QCtable$chargecorrelation <- 
+        QCtable$chargecorrelation <- 0
     } else{
     QCtable$chargecorrelation <- 0
     for (i in seq_along(experiment)){
