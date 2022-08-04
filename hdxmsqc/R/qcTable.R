@@ -103,12 +103,14 @@ qualityControl <- function(object,
     } else{
     QCtable$chargecorrelation <- 0
     for (i in seq_along(experiment)){
-        cRes <- rowSums(chargeCorrelation[[1]] < 0.9) > 1
+        cRes <- colSums(chargeCorrelation[[i]] < 0.9, na.rm = TRUE) >= 1
         wC <- cRes[cRes]
         seq <- sapply(strsplit(QCtable$sequence, split = ""),
                       function(x) paste(x[seq.int(length(x)) - 1],
                                         sep = "", collapse = ""))
-        QCtable$chargecorrelation[QCtable$experiment %in% experiment[[i]]][wC] <- 1
+        sub1 <- QCtable$experiment %in% experiment[[i]]
+        sub2 <- seq %in% names(wC)
+        QCtable$chargecorrelation[sub1 & sub2] <- 1
     }
     
         

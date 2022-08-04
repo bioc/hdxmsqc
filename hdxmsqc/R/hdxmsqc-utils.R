@@ -623,21 +623,27 @@ chargeCorrelationHdx <- function(object,
                       nchar(rownames(object)[[1]]))
     ch <- which(substr(rownames(object)[[1]],
                        1,
-                       nchar(rownames(object)[[1]]) - 1) == names(wh)[2])
+                       nchar(rownames(object)[[1]]) - 1) %in% names(wh))
+    maxch <- max(as.numeric(chstate))
+    
+    numDupl <- table(substr(rownames(object)[[1]], 
+                            1, nchar(rownames(object)[[1]]) - 1))[wh]
     
     out <- vector(mode = "list", length = length(experiment))
     for (k in seq_along(experiment)){
       zz <- grep(pattern = experiment[k], colnames(assay(object)))
       df <- data.frame(y = c(assay(object)[ch, zz]),
                        x = rep(timepoints, each = length(ch)),
-                       z = rep(chstate[ch], times = length(timepoints)))
-      df <- df |> group_by(x, z) |> mutate(replicate = row_number())
-      df_2 <- df |> dplyr::filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate"),
-                                                names_from = z,
+                       z = rep(chstate[ch], times = length(timepoints)),
+                       peptide = rep(rep(names(numDupl),
+                                         times = numDupl), times = length(zz)))
+      df <- df |> group_by(x, z, peptide) |> mutate(replicate = row_number())
+      df_2 <- df |> dplyr::filter(x != 0) |> pivot_wider(id_cols = c("x", "replicate", "peptide"),
+                                                names_from = c(z),
                                                 values_from = y)
-      .out <- cor(df_2[,-c(1,2)])
-      rownames(.out) <- names(wh)
-      out[[k]] <- .out
+      .out <- sapply(names(wh), function(x) cor(df_2[df_2$peptide == x, -c(1,2,3)]))
+      out[[k]] <- .out[seq.int(maxch),]
+      rownames(out[[k]]) <- seq.int(maxch)
     }
     
     names(out) <- experiment
