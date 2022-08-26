@@ -451,7 +451,7 @@ computeMonotoneStats <- function(object,
         pmult <- table(monoStat[k,])/length(monoStat[k, ])
     
         # the threshold we should apply to filer values
-        wh <- min(which(cumsum(pmult) > 0.95))
+        wh <- min(which(cumsum(pmult) > 0.98))
         toThres <- as.numeric(names(pmult)[wh]) 
     
         df[[k]] <- data.frame(x = rownames(assay(object)), y = monoStat[k,])
@@ -801,7 +801,8 @@ spectraSimilarity <- function(peaks,
     testspectra$intensity <- testspectra$intensity/max(testspectra$intensity, na.rm = TRUE)
     spectrascores <- bplapply(seq.int(numSpectra), function(z)
         Spectra::compareSpectra(x = spd[z, ],
-                       y = testspectra[z, ], ppm = ppm))
+                       y = testspectra[z, ], ppm = ppm, 
+                       FUN = MsCoreUtils::navdist))
   
     spd$score <- c(unlist(spectrascores), rep(NA, times = length(spd$Sequence) - numSpectra))
     spd$experiment <- peaks$Protein.State
@@ -813,3 +814,104 @@ spectraSimilarity <- function(peaks,
     return(list(observedSpectra = spd, matchedSpectra = testspectra))
 }
 
+#' Correlation based checks
+#' 
+#' @param object
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' @return Returns A list of the same length as the number of experiments indicating
+#' outlier from correlation analysis. Outliers are flagged if their deuterium
+#' uptake is highly variable.
+#' 
+#' @md
+#' @author Oliver Crook
+#' @export
+replicateCorrelation <- function(object, 
+                                 experiment,
+                                 timepoints){
+
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    corStat <- matrix(NA,
+                       ncol = nrow(assay(object)), 
+                       nrow = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+        
+        # get columns for experiment
+        zz <- grep(pattern = experiment[k], x = colnames(object)[[1]])
+        
+        for (j in seq.int(nrow(assay(object)))){
+            test <- data.frame( y = assay(object)[j, zz], 
+                                x = timepoints)
+            res <- test |> group_by(x) |> summarise(cor = var(y, use = "everything"))
+            corStat[k, j] <- max(res$cor, 0)
+        }
+    }
+    
+    df <- vector(mode = "list", length = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+
+        toThres <- quantile(corStat, 0.95)
+        
+        df[[k]] <- data.frame(x = rownames(assay(object)), y = corStat[k, ])
+        df[[k]]$outlier <- as.character(1*(df[[k]]$y >= toThres))
+        
+    }
+    
+    return(cor = df)
+}    
+#' Correlation based checks
+#' 
+#' @param object
+#' @param experiment A character vector indicating the experimental conditions
+#' @param timepoints A numeric vector indicating the experimental timepoints
+#' @return Returns A list of the same length as the number of experiments indicating
+#' outlier from correlation analysis. Outliers are flagged if their deuterium
+#' uptake is highly variable.
+#' 
+#' @md
+#' @author Oliver Crook
+#' @export
+replicateOutlier <- function(object, 
+                             experiment,
+                             timepoints){
+    
+    stopifnot("Object is not a QFeatures object"=is(object, "QFeatures"))
+    stopifnot("Must provide the experimental conditions"=!is.null(experiment))
+    stopifnot("Must indicate the timepoints"=!is.null(timepoints))
+    
+    mMStat <- matrix(NA,
+                      ncol = nrow(assay(object)), 
+                      nrow = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+        
+        # get columns for experiment
+        zz <- grep(pattern = experiment[k], x = colnames(object)[[1]])
+        
+        for (j in seq.int(nrow(assay(object)))){
+            test <- data.frame( y = assay(object)[j, zz], 
+                                x = timepoints)
+            res <- test |> group_by(x) |> 
+                summarise(mM = abs(mean(y, na.rm = TRUE) - median(y, na.rm = TRUE)))
+            mMStat[k, j] <- max(res$mM, 0)
+        }
+    }
+    
+    df <- vector(mode = "list", length = length(experiment))
+    
+    for (k in seq.int(length(experiment))){
+        
+        toThres <- quantile(mMStat, 0.99)
+        
+        df[[k]] <- data.frame(x = rownames(assay(object)), y = mMStat[k, ])
+        df[[k]]$outlier <- as.character(1*(df[[k]]$y >= toThres))
+        
+    }
+    
+    return(cor = df)
+}    

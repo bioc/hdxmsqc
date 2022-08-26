@@ -185,6 +185,21 @@ csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
                               timepoints = timepoints)
 csCor
 ```
+# Using replicates to determine outliers and variabilit
+
+```{r,}
+replicateVar <- replicateCorrelation(object = BRD4df_filtered_imputed,
+                                     experiment = experiment,
+                                     timepoints = timepoints)
+
+replicateOut <- replicateOutlier(object = BRD4df_filtered_imputed,
+                                     experiment = experiment,
+                                     timepoints = timepoints)
+
+
+```
+
+
 
 # Using sequence overlap information are uptake values compatible
 

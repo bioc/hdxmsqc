@@ -51,6 +51,15 @@ qualityControl <- function(object,
     QCtable$End <-0
     QCtable[, c("Start", "End")] <- startend[QCtable$sequence,]
     
+    ## Get score from software (e.g. HDExaminer)
+    i <- grep(pattern = "Score", x = rowDataNames(object)[[1]])
+    HDscore <- data.frame(rowData(object[[1]])[, i])
+    QCtable$HDScore <- 0 
+    QCtable$HDScore <- c(t(HDscore))
+    
+    
+    
+    
     if (is.null(massError)){
         QCtable$massCheck <- 0
     } else{
