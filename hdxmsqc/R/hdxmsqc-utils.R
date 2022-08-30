@@ -913,5 +913,5 @@ replicateOutlier <- function(object,
         
     }
     
-    return(cor = df)
+    return(outlier = df)
 }    

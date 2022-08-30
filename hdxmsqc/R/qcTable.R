@@ -7,8 +7,10 @@
 #' @param monotonicityStat The output of the `computeMonotoneStats` function
 #' @param mobilityOutlier The output of the `imTimeOutliers` function
 #' @param chargeCorrelation The output of the `chargeCorrelationsHdx` function
+#' @param replicateCorrelation The output of the `replicateCorrelation` function
+#' @param replicateOutlier The output of the `replicateOutlier` function
 #' @param sequenceCheck The output of the `compatibleUptake` function
-#' @param spectraCheck The output of the `spectraSimility` function
+#' @param spectraCheck The output of the `spectraSimiarity` function
 #' @param experiment The experimental conditions.
 #' @param timepoints The timepoints used in the analysis, must include repeat
 #' for replicates
@@ -26,6 +28,8 @@ qualityControl <- function(object,
                            monotonicityStat = NULL,
                            mobilityOutlier = NULL,
                            chargeCorrelation = NULL,
+                           replicateCorrelation = NULL,
+                           replicateOutlier = NULL,
                            sequenceCheck = NULL,
                            spectraCheck = NULL,
                            experiment = NULL,
@@ -121,10 +125,46 @@ qualityControl <- function(object,
         sub2 <- seq %in% names(wC)
         QCtable$chargecorrelation[sub1 & sub2] <- 1
     }
-    
-        
-        
     }
+    
+    # Replicate-based check 1
+    
+    if(is.null(replicateCorrelation)){
+        QCtable$replicatecorrelation <- 0
+    } else{
+        QCtable$replicatecorrelation <- 0
+        
+        for (i in seq_along(experiment)){
+            
+            rcRes <- as.numeric(replicateCorrelation[[i]]$outlier) == 1
+            rcC <- replicateCorrelation[[i]]$x[rcRes]
+            sub1 <- QCtable$experiment %in% experiment[[i]]
+            sub2 <- QCtable$sequence %in% rcC
+            
+            QCtable$replicationcorrelation[sub1 & sub2] <- 1 
+            
+        }
+    }
+    
+    # Replicated-based check 2
+    if(is.null(replicateOutlier)){
+        QCtable$replicateoutlier <- 0
+    } else{
+        QCtable$replicateoutlier <- 0
+        
+        for (i in seq_along(experiment)){
+            
+            rcRes <- as.numeric(replicateOutlier[[i]]$outlier) == 1
+            rcC <- replicateOutlier[[i]]$x[rcRes]
+            sub1 <- QCtable$experiment %in% experiment[[i]]
+            sub2 <- QCtable$sequence %in% rcC
+            
+            QCtable$replicationOutlier[sub1 & sub2] <- 1 
+        }
+    }
+    
+    
+    
     
     if (is.null(sequenceCheck)){
         QCtable$sequenceCheck <- 0
