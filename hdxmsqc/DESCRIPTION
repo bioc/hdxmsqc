@@ -24,7 +24,8 @@ Imports:
         knitr,
         methods,
         grDevices,
-        stats
+        stats,
+        MsCoreUtils
 Suggests: 
         RColorBrewer,
         pheatmap,

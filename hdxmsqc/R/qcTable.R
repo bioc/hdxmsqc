@@ -141,7 +141,7 @@ qualityControl <- function(object,
             sub1 <- QCtable$experiment %in% experiment[[i]]
             sub2 <- QCtable$sequence %in% rcC
             
-            QCtable$replicationcorrelation[sub1 & sub2] <- 1 
+            QCtable$replicatecorrelation[sub1 & sub2] <- 1 
             
         }
     }
@@ -159,7 +159,7 @@ qualityControl <- function(object,
             sub1 <- QCtable$experiment %in% experiment[[i]]
             sub2 <- QCtable$sequence %in% rcC
             
-            QCtable$replicationOutlier[sub1 & sub2] <- 1 
+            QCtable$replicateOutlier[sub1 & sub2] <- 1 
         }
     }
     

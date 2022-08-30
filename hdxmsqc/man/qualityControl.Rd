@@ -13,6 +13,8 @@ qualityControl(
   monotonicityStat = NULL,
   mobilityOutlier = NULL,
   chargeCorrelation = NULL,
+  replicateCorrelation = NULL,
+  replicateOutlier = NULL,
   sequenceCheck = NULL,
   spectraCheck = NULL,
   experiment = NULL,
@@ -35,9 +37,13 @@ qualityControl(
 
 \item{chargeCorrelation}{The output of the \code{chargeCorrelationsHdx} function}
 
+\item{replicateCorrelation}{The output of the \code{replicateCorrelation} function}
+
+\item{replicateOutlier}{The output of the \code{replicateOutlier} function}
+
 \item{sequenceCheck}{The output of the \code{compatibleUptake} function}
 
-\item{spectraCheck}{The output of the \code{spectraSimility} function}
+\item{spectraCheck}{The output of the \code{spectraSimiarity} function}
 
 \item{experiment}{The experimental conditions.}
 

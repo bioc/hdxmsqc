@@ -12,7 +12,7 @@ importFrom(Spectra,
 importFrom("grDevices", "colorRampPalette")
 importFrom("methods", "is")
 importFrom("stats", "cooks.distance", "cor", "fft", "filter", "lm",
-               "na.omit", "quantile", "var")
+               "na.omit", "quantile", "var", "median")
 importFrom("dplyr", "mutate", "group_by", "row_number", "summarise", "pull")
 importFrom("tidyr", "pivot_wider", "as_tibble", "pivot_longer")
 importFrom("QFeatures", "rowDataNames", "rowData<-", "filterFeatures")
@@ -21,3 +21,5 @@ importFrom("ggplot2", "ggplot", "aes", "geom_boxplot", "theme_classic","ylab",
            "coord_flip", "theme", "element_text", "geom_hline", "geom_segment",
            "geom_point", "scale_color_manual", "ggtitle",
            "xlab")
+
+
