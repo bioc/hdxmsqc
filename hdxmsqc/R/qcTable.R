@@ -159,7 +159,7 @@ qualityControl <- function(object,
             sub1 <- QCtable$experiment %in% experiment[[i]]
             sub2 <- QCtable$sequence %in% rcC
             
-            QCtable$replicateOutlier[sub1 & sub2] <- 1 
+            QCtable$replicateoutlier[sub1 & sub2] <- 1 
         }
     }
     
@@ -218,7 +218,7 @@ qualityControl <- function(object,
     }
 
     
-    QCtable$flagged <- rowSums(as.matrix(QCtable[, -(c(seq.int(6), which(colnames(QCtable) == "score")))]))
+    QCtable$flagged <- rowSums(as.matrix(QCtable[, -(c(seq.int(7), which(colnames(QCtable) == "score")))]))
     
     if(isTRUE(undeuterated)){
         QCtable <- QCtable[QCtable$timepoints == 0,]
