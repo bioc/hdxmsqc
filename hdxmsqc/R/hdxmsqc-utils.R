@@ -855,7 +855,7 @@ replicateCorrelation <- function(object,
     
     for (k in seq.int(length(experiment))){
 
-        toThres <- quantile(corStat, 0.95)
+        toThres <- quantile(corStat, 0.95, na.rm = TRUE)
         
         df[[k]] <- data.frame(x = rownames(assay(object)), y = corStat[k, ])
         df[[k]]$outlier <- as.character(1*(df[[k]]$y >= toThres))
