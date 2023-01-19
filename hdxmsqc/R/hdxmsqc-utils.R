@@ -171,7 +171,7 @@ isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
     rowData(object)[[1]]$mnar <- to_filter_missing
     
     if (isTRUE(filter)){
-        object <- filterFeatures(object, ~ to_filter_missing != 1) 
+        object <- filterFeatures(object, ~ mnar != 1,) 
         message("Number of peptides filtered:", sum(to_filter_missing))   
     }
 

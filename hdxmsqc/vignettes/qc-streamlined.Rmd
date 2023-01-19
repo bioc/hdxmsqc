@@ -102,7 +102,7 @@ The values that are missing are all at the zero time-points where deuterium
 uptake should be 0, we can simply impute these values.
 
 ```{r,}
-BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero")
+BRD4df_filtered_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
 ```
 
 # Empirical vs Theoretical errors
@@ -185,7 +185,7 @@ csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
                               timepoints = timepoints)
 csCor
 ```
-# Using replicates to determine outliers and variabilit
+# Using replicates to determine outliers and variability
 
 ```{r,}
 replicateVar <- replicateCorrelation(object = BRD4df_filtered_imputed,
@@ -258,6 +258,10 @@ To visualise these spectra we can use the following function
 ```{r,}
 plotSpectraMirror(spectraCompare$observedSpectra[1,], spectraCompare$matchedSpectra[1,], ppm = 300)
 ```
+
+Finally, a summarise quality control table can be produced and saved in a
+.csv file if desired.
+
 ```{r,}
 qctable <- qualityControl(object = BRD4df_filtered_imputed, 
                            massError = massError,
@@ -274,3 +278,6 @@ qctable <- qualityControl(object = BRD4df_filtered_imputed,
                            timepoints = timepoints )
 ```
 
+```{r,}
+sessionInfo()
+```
