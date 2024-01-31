@@ -82,6 +82,7 @@ A simple heatmap of our data can give us a sense of it.
 ```{r,}
 pheatmap(assay(BRD4df), cluster_rows = FALSE, scale = "row")
 ```
+
 # Examining missing values
 
 Here, we can plot where the missing values are:
@@ -174,6 +175,7 @@ Again, we define outliers that deviate outside the typical 1.5 * IQR.
 imTimeOut <- imTimeOutlier(object = BRD4df_filtered_imputed)
 plotImTimeOutlier(object = BRD4df_filtered_imputed)
 ```
+
 # Charge state correlation
 
 We check that charge states are correlated. Whilst we don't expect exactly
@@ -185,6 +187,7 @@ csCor <- chargeCorrelationHdx(object = BRD4df_filtered_imputed,
                               timepoints = timepoints)
 csCor
 ```
+
 # Using replicates to determine outliers and variability
 
 ```{r,}
