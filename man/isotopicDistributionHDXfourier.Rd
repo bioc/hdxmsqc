@@ -27,6 +27,9 @@ A list of mass and intensity value corresponding to the isotope distribution
 \description{
 fourier transform approach to computing isotopic distribution
 }
+\examples{
+isotopicDistributionHDXfourier(sequence = "HDAEHAHEAPRKL")
+}
 \author{
 Oliver Crook
 }

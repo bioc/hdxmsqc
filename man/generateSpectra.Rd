@@ -26,6 +26,10 @@ A Spectra object corresponding to the isotope distributions
 \description{
 generate Spectra using a fourier transform
 }
+\examples{
+generateSpectra(sequence = "HDAEHAHEAPRKL", incorps = c(0.5), charges = 2)
+
+}
 \author{
 Oliver Crook
 }

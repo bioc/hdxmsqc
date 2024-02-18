@@ -26,6 +26,13 @@ The default is "Search.IMS"}
 \description{
 Ion Mobility time based outlier analysis
 }
+\examples{
+data("BRD4df_full")
+BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+imTimeOutlier(object = BRD4df_full_imputed)
+
+}
 \author{
 Oliver Crook
 }

@@ -21,6 +21,10 @@ is sequences within 5 residues}
 Check whether deuterium uptakes are compatible with difference overlapping
 sequences.
 }
+\examples{
+data("BRD4df")
+result <- compatibleUptake(BRD4df,  experiment = 1, timepoints = 1)
+}
 \author{
 Oliver Crook
 }

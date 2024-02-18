@@ -29,6 +29,11 @@ a ggplot2 object showing distribution of retention time windows.
 \description{
 Retention time based analysis
 }
+\examples{
+data("BRD4df_full")
+
+plotrTimeOutliers(BRD4df_full)
+}
 \author{
 Oliver Crook
 }

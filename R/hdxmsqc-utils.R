@@ -9,6 +9,11 @@
 #' @md
 #' @rdname processHDE
 #' @author Oliver Crook
+#' @examples
+#' sample_data <- data.frame(read.csv(system.file("extdata", "ELN55049_AllResultsTables_Uncurated.csv", package = "hdxmsqc", mustWork = TRUE), nrows = 10))
+#' 
+#' processHDE(sample_data) 
+#' 
 #' @return A wide format data frame with HDExaminer data
 #' @export
 processHDE <- function(HDExaminerFile, proteinStates = NULL){
@@ -125,6 +130,10 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
 #' @param object An object of class `QFeatures`
 #' @param ... Additional arguemnts to pheatmap
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' 
+#' plotMissing(BRD4df_full)
 #' 
 #' 
 #' @return a pheatmap showing missing values
@@ -153,10 +162,15 @@ plotMissing <- function(object, ...){
 #'threshold which is half the number of columns.
 #'@param filter A logial indicating whether to filter out data that is deemed
 #' missing not at random
-#'@md 
+#'
+#'
+#' data("BRD4df_full")
+#' 
+#' isMissingAtRandom(BRD4df_full)
 #'
 #'@return Adds a missing not at random indicator column  
 #'@author Oliver Crook 
+#'@md
 #'@export 
 isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
     
@@ -188,6 +202,10 @@ isMissingAtRandom <- function(object, threshold = NULL, filter = TRUE){
 #'theoretical centroid
 #'@return The error difference between the empirical and theoretical centroid
 #'@md
+#'@examples
+#' data("BRD4df")
+#' result <- computeMassError(BRD4df, "Exp.Cent", "Theor.Cent")
+#' head(result)
 #'@author Oliver Crook
 #'@export
 computeMassError <- function(object,
@@ -217,6 +235,10 @@ computeMassError <- function(object,
 #'theoretical centroid
 #'@return a ggplot2 object which can be used to visualise the 
 #'@md
+#'@examples
+#' library(RColorBrewer)
+#' data("BRD4df")
+#' result <- plotMassError(BRD4df, "Exp.Cent", "Theor.Cent")
 #'@author Oliver Crook
 #'@export
 plotMassError <- function(object,
@@ -250,6 +272,10 @@ plotMassError <- function(object,
 #' "Max.Inty" and uses regular expressions to find relevant columns
 #' @return The Cook's distance to characterise outleirs 
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' 
+#' intensityOutliers(BRD4df_full)
 #' @author Oliver Crook
 #' @export
 intensityOutliers <- function(object,
@@ -278,6 +304,10 @@ intensityOutliers <- function(object,
 #' "Max.Inty" and uses regular expressions to find relevant columns
 #' @return A ggplot2 object showing intensity based outliers 
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' 
+#' plotIntensityOutliers(BRD4df_full)
 #' @author Oliver Crook
 #' @export
 plotIntensityOutliers <- function(object,
@@ -312,6 +342,10 @@ plotIntensityOutliers <- function(object,
 #'  
 #' @return A list indicating the retention time based outliers. 
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' 
+#' rTimeOutliers(BRD4df_full)
 #' @author Oliver Crook
 #' @export
 rTimeOutliers <- function(object,
@@ -376,6 +410,10 @@ rTimeOutliers <- function(object,
 #' @return a ggplot2 object showing distribution of retention time windows.
 #'  
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' 
+#' plotrTimeOutliers(BRD4df_full)
 #' @author Oliver Crook
 #' @export
 plotrTimeOutliers <- function(object,
@@ -416,6 +454,9 @@ plotrTimeOutliers <- function(object,
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
 #' @md
+#' @examples
+#' data("BRD4df")
+#' result <- computeMonotoneStats(BRD4df, experiment = 1, timepoint = 1)
 #' @author Oliver Crook
 #' @export
 computeMonotoneStats <- function(object,
@@ -467,6 +508,13 @@ computeMonotoneStats <- function(object,
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' experiment <- c("wt", "iBET")
+#' timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+#' monoStat <- computeMonotoneStats(object = BRD4df_full,
+#' experiment = experiment, 
+#' timepoints = timepoints)
 #' @author Oliver Crook
 #' @export
 plotMonotoneStat <- function(object,
@@ -509,7 +557,14 @@ plotMonotoneStat <- function(object,
 #' @param searchIMS A string indicating the actual ion mobility search time. 
 #' The default is "Search.IMS"
 #' @md
+#' 
 #' @author Oliver Crook
+#' @examples
+#' data("BRD4df_full")
+#' BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+#' BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+#' imTimeOutlier(object = BRD4df_full_imputed)
+#' 
 #' @export
 imTimeOutlier <- function(object,
                           rightIMS = "rightIMS",
@@ -569,6 +624,12 @@ imTimeOutlier <- function(object,
 #' The default is "Search.IMS"
 #' @md
 #' @author Oliver Crook
+#' @examples
+#' library(RColorBrewer)
+#' data("BRD4df_full")
+#' BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+#' BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+#' plotImTimeOutlier(object = BRD4df_full_imputed)
 #' @export 
 plotImTimeOutlier <- function(object,
                           rightIMS = "rightIMS",
@@ -606,6 +667,15 @@ plotImTimeOutlier <- function(object,
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+#' BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+#' experiment <- c("wt", "iBET")
+#' timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+#' monoStat <- chargeCorrelationHdx(object = BRD4df_full_imputed,
+#' experiment = experiment, 
+#' timepoints = timepoints)
 #' @author Oliver Crook
 #' @export
 chargeCorrelationHdx <- function(object,
@@ -660,6 +730,9 @@ chargeCorrelationHdx <- function(object,
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' 
 #' @md
+#' @examples
+#' data("BRD4df")
+#' result <- compatibleUptake(BRD4df,  experiment = 1, timepoints = 1)
 #' @author Oliver Crook
 #' @export
 compatibleUptake <- function(object,
@@ -816,7 +889,7 @@ spectraSimilarity <- function(peaks,
 
 #' Correlation based checks
 #' 
-#' @param object
+#' @param object An object of class QFeatures.
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' @return Returns A list of the same length as the number of experiments indicating
@@ -825,6 +898,14 @@ spectraSimilarity <- function(peaks,
 #' 
 #' @md
 #' @author Oliver Crook
+#' @examples
+#' data("BRD4df_full")
+#' experiment <- c("wt", "iBET")
+#' timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+#' monoStat <- replicateCorrelation(object = BRD4df_full,
+#' experiment = experiment, 
+#' timepoints = timepoints)
+#' 
 #' @export
 replicateCorrelation <- function(object, 
                                  experiment,
@@ -863,10 +944,11 @@ replicateCorrelation <- function(object,
     }
     
     return(cor = df)
-}    
+}   
+
 #' Correlation based checks
 #' 
-#' @param object
+#' @param object  An object of class QFeatures.
 #' @param experiment A character vector indicating the experimental conditions
 #' @param timepoints A numeric vector indicating the experimental timepoints
 #' @return Returns A list of the same length as the number of experiments indicating
@@ -874,6 +956,15 @@ replicateCorrelation <- function(object,
 #' uptake is highly variable.
 #' 
 #' @md
+#' @examples
+#' data("BRD4df_full")
+#' BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+#' BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+#' experiment <- c("wt", "iBET")
+#' timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+#' monoStat <- replicateOutlier(object = BRD4df_full_imputed,
+#' experiment = experiment, 
+#' timepoints = timepoints)
 #' @author Oliver Crook
 #' @export
 replicateOutlier <- function(object, 

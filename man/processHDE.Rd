@@ -22,6 +22,12 @@ Function to curate and HDExaminer file so that in contains all the information
 in a sensible format. This object can then be straightforwardly passed to
 a object of class \code{QFeatures}
 }
+\examples{
+sample_data <- data.frame(read.csv(system.file("extdata", "ELN55049_AllResultsTables_Uncurated.csv", package = "hdxmsqc", mustWork = TRUE), nrows = 10))
+
+processHDE(sample_data) 
+
+}
 \author{
 Oliver Crook
 }

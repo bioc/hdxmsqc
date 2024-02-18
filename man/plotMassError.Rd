@@ -21,6 +21,11 @@ a ggplot2 object which can be used to visualise the
 \description{
 Mass error plot
 }
+\examples{
+library(RColorBrewer)
+data("BRD4df")
+result <- plotMassError(BRD4df, "Exp.Cent", "Theor.Cent")
+}
 \author{
 Oliver Crook
 }

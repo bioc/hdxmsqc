@@ -18,6 +18,16 @@ chargeCorrelationHdx(object, experiment = NULL, timepoints = NULL)
 Charge states should have correlated incorperation but they need not
 be exactly the same
 }
+\examples{
+data("BRD4df_full")
+BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- chargeCorrelationHdx(object = BRD4df_full_imputed,
+experiment = experiment, 
+timepoints = timepoints)
+}
 \author{
 Oliver Crook
 }

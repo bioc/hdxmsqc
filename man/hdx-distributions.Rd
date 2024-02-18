@@ -15,3 +15,7 @@ Returns a numeric indicating the number of exchangeable amides
 \description{
 Computes the number of exchangeable amides based on the sequnece
 }
+\examples{
+
+exchangeableAmides(sequence = "HDAEHAHEAPRKL")
+}

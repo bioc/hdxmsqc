@@ -29,6 +29,11 @@ A list indicating the retention time based outliers.
 \description{
 Retention time based analysis
 }
+\examples{
+data("BRD4df_full")
+
+rTimeOutliers(BRD4df_full)
+}
 \author{
 Oliver Crook
 }

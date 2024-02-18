@@ -16,6 +16,10 @@ computeMonotoneStats(object, experiment = NULL, timepoints = NULL)
 \description{
 Monotonicity based outlier detection.
 }
+\examples{
+data("BRD4df")
+result <- computeMonotoneStats(BRD4df, experiment = 1, timepoint = 1)
+}
 \author{
 Oliver Crook
 }

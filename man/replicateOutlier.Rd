@@ -7,6 +7,8 @@
 replicateOutlier(object, experiment, timepoints)
 }
 \arguments{
+\item{object}{An object of class QFeatures.}
+
 \item{experiment}{A character vector indicating the experimental conditions}
 
 \item{timepoints}{A numeric vector indicating the experimental timepoints}
@@ -18,6 +20,16 @@ uptake is highly variable.
 }
 \description{
 Correlation based checks
+}
+\examples{
+data("BRD4df_full")
+BRD4df_filtered <- isMissingAtRandom(object = BRD4df_full)
+BRD4df_full_imputed <- impute(BRD4df_filtered, method = "zero", i = 1)
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- replicateOutlier(object = BRD4df_full_imputed,
+experiment = experiment, 
+timepoints = timepoints)
 }
 \author{
 Oliver Crook

@@ -18,6 +18,11 @@ The Cook's distance to characterise outleirs
 \description{
 Intensity based deviations
 }
+\examples{
+data("BRD4df_full")
+
+intensityOutliers(BRD4df_full)
+}
 \author{
 Oliver Crook
 }

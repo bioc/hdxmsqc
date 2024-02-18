@@ -7,6 +7,9 @@
 #' a default heuristic is used to make a good guess that covers the expected peaks.
 #' @return A list of mass and intensity value corresponding to the isotope distribution
 #' @md
+#' @examples
+#' fourierIsotope(c(C = 0, H = 2, N = 0, O = 1, S = 0, P = 0))
+#' 
 #' @author Oliver Crook
 #' @export
 fourierIsotope <- function(elements,
@@ -104,6 +107,8 @@ fourierIsotope <- function(elements,
 #' of the elements. 
 #' @return A list of mass and intensity value corresponding to the isotope distribution
 #' @md
+#' @examples 
+#' isotopicDistributionHDXfourier(sequence = "HDAEHAHEAPRKL")
 #' @author Oliver Crook
 #' @export
 isotopicDistributionHDXfourier <- function(sequence,
@@ -191,7 +196,9 @@ isotopicDistributionHDXfourier <- function(sequence,
 ##' @param sequence The sequence of the peptide
 ##' @return Returns a numeric indicating the number of exchangeable amides
 ##' @md
+##' @examples
 ##' 
+##' exchangeableAmides(sequence = "HDAEHAHEAPRKL")
 ##' @rdname hdx-distributions
 exchangeableAmides <- function(sequence) {
     
@@ -289,6 +296,9 @@ isotopicDistributionHDXfourier <- function(sequence,
 #' @return A Spectra object corresponding to the isotope distributions
 #' @md
 #' @author Oliver Crook
+#' @examples
+#' generateSpectra(sequence = "HDAEHAHEAPRKL", incorps = c(0.5), charges = 2)
+#' 
 #' @export
 generateSpectra <- function(sequences,
                             incorps, 

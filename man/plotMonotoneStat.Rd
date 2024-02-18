@@ -16,6 +16,14 @@ plotMonotoneStat(object, experiment = NULL, timepoints = NULL)
 \description{
 Monotonicity based outlier detection, plot.
 }
+\examples{
+data("BRD4df_full")
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- computeMonotoneStats(object = BRD4df_full,
+experiment = experiment, 
+timepoints = timepoints)
+}
 \author{
 Oliver Crook
 }

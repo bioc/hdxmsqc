@@ -14,7 +14,11 @@ whether missingness is not at random. Default is NULL, which means leads to a
 threshold which is half the number of columns.}
 
 \item{filter}{A logial indicating whether to filter out data that is deemed
-missing not at random}
+missing not at random
+
+data("BRD4df_full")
+
+isMissingAtRandom(BRD4df_full)}
 }
 \value{
 Adds a missing not at random indicator column

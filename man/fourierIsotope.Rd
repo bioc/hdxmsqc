@@ -30,6 +30,10 @@ A list of mass and intensity value corresponding to the isotope distribution
 \description{
 fourier transform approach to computing isotopic distribution
 }
+\examples{
+fourierIsotope(c(C = 0, H = 2, N = 0, O = 1, S = 0, P = 0))
+
+}
 \author{
 Oliver Crook
 }

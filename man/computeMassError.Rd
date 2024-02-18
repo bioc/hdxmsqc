@@ -21,6 +21,11 @@ The error difference between the empirical and theoretical centroid
 \description{
 Empirical versus theoretical mass errors
 }
+\examples{
+data("BRD4df")
+result <- computeMassError(BRD4df, "Exp.Cent", "Theor.Cent")
+head(result)
+}
 \author{
 Oliver Crook
 }

@@ -7,6 +7,8 @@
 replicateCorrelation(object, experiment, timepoints)
 }
 \arguments{
+\item{object}{An object of class QFeatures.}
+
 \item{experiment}{A character vector indicating the experimental conditions}
 
 \item{timepoints}{A numeric vector indicating the experimental timepoints}
@@ -18,6 +20,15 @@ uptake is highly variable.
 }
 \description{
 Correlation based checks
+}
+\examples{
+data("BRD4df_full")
+experiment <- c("wt", "iBET")
+timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)
+monoStat <- replicateCorrelation(object = BRD4df_full,
+experiment = experiment, 
+timepoints = timepoints)
+
 }
 \author{
 Oliver Crook

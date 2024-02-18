@@ -18,6 +18,11 @@ A ggplot2 object showing intensity based outliers
 \description{
 Intensity based deviation plot
 }
+\examples{
+data("BRD4df_full")
+
+plotIntensityOutliers(BRD4df_full)
+}
 \author{
 Oliver Crook
 }

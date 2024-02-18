@@ -17,6 +17,13 @@ a pheatmap showing missing values
 \description{
 missing value plot
 }
+\examples{
+data("BRD4df_full")
+
+plotMissing(BRD4df_full)
+
+
+}
 \author{
 Oliver Crook
 }
