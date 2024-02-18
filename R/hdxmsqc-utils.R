@@ -132,6 +132,8 @@ processHDE <- function(HDExaminerFile, proteinStates = NULL){
 #' @md
 #' @examples
 #' data("BRD4df_full")
+#' library(pheatmap)
+#' library(RColorBrewer)
 #' 
 #' plotMissing(BRD4df_full)
 #' 
@@ -306,6 +308,7 @@ intensityOutliers <- function(object,
 #' @md
 #' @examples
 #' data("BRD4df_full")
+#' library(RColorBrewer)
 #' 
 #' plotIntensityOutliers(BRD4df_full)
 #' @author Oliver Crook
@@ -412,6 +415,7 @@ rTimeOutliers <- function(object,
 #' @md
 #' @examples
 #' data("BRD4df_full")
+#' library(RColorBrewer)
 #' 
 #' plotrTimeOutliers(BRD4df_full)
 #' @author Oliver Crook
@@ -509,6 +513,7 @@ computeMonotoneStats <- function(object,
 #' 
 #' @md
 #' @examples
+#' library("RColorBrewer")
 #' data("BRD4df_full")
 #' experiment <- c("wt", "iBET")
 #' timepoints <- rep(c(0, 15, 60, 600, 3600, 14000), each = 3)

@@ -31,6 +31,7 @@ Retention time based analysis
 }
 \examples{
 data("BRD4df_full")
+library(RColorBrewer)
 
 plotrTimeOutliers(BRD4df_full)
 }

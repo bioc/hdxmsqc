@@ -19,6 +19,8 @@ missing value plot
 }
 \examples{
 data("BRD4df_full")
+library(pheatmap)
+library(RColorBrewer)
 
 plotMissing(BRD4df_full)
 

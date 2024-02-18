@@ -20,6 +20,7 @@ Intensity based deviation plot
 }
 \examples{
 data("BRD4df_full")
+library(RColorBrewer)
 
 plotIntensityOutliers(BRD4df_full)
 }
