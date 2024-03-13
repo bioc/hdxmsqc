@@ -11,7 +11,8 @@ abstract: "This vignette describes how to pefrom quality control for
 vignette: |
   %\VignetteIndexEntry{Qualityt control for differential hydrogen deuterium exchange mass spectrometry data}
   %\VignetteEngine{knitr::rmarkdown}
-  %%\VignetteKeywords{Mass Spectrometry, MS, MSMS, Proteomics, Metabolomics, Infrastructure, Quantitative} %\VignetteEncoding{UTF-8}
+  %\VignetteKeywords{Mass Spectrometry, MS, MSMS, Proteomics, Metabolomics, Infrastructure, Quantitative} 
+  %\VignetteEncoding{UTF-8}
 ---
 
 # Introduction
