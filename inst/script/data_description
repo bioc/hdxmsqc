@@ -1,0 +1,15 @@
+This text file describes the generation of the files in the `inst/extdata` 
+directory. The files in this directory are used for providing package 
+documentation and examples. The file beginning ELN55059 was generated
+from a HDX-MS experiment at GSK. The data contains BRD4 and BRD4 in complex
+with IBET151. The raw data are loaded into HDExaminer and then exported without
+curation.
+
+The same data but which has been manually curated is also provided. The file
+is called "BRD4_RowChecked_20220628_HDE.csv"
+
+The same data but which has been manually curated and parsed through HDSite
+is provided in the file "BRD4_RowChecked_20220628_HDSite.csv". This file contains
+raw spectra for each peptide indicating the isotopic distribution. 
+
+The data are available for reuse according to the package license.
