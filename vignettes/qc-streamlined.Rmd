@@ -34,9 +34,9 @@ to demonstrate they have high quality data.
 The packages required are the following.
 
 ```{r,}
-require(hdxmsqc)
+suppressMessages(require(hdxmsqc))
 require(S4Vectors)
-require(dplyr)
+suppressMessages(require(dplyr))
 require(tidyr)
 require(QFeatures)
 require(RColorBrewer)
@@ -45,6 +45,7 @@ require(MASS)
 require(pheatmap)
 require(Spectra)
 require(patchwork)
+
 ```
 
 # Data
