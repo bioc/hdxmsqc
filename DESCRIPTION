@@ -2,7 +2,7 @@ Package: hdxmsqc
 Type: Package
 Title: An R package for quality Control for hydrogen deuterium exchange 
  mass spectrometry experiments
-Version: 0.99.3
+Version: 0.99.4
 Authors@R: c(person(family = "Crook", given = "Oliver M.",
 		                email = "oliver.crook@stats.ox.ac.uk",
 		                comment = c(ORCID = "0000-0001-5669-8506"),
