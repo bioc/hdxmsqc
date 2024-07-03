@@ -34,7 +34,7 @@ i <- grep(pattern = "X..Deut",
           x = names(result))
 
 
-sample_qfeatures <- readQFeatures(table = result,
+sample_qfeatures <- readQFeatures(assayData = result,
                         ecol = i,
                         names = "Deuteration",
                         fnames = "fnames")

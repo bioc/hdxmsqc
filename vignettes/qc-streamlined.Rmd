@@ -71,7 +71,7 @@ i <- grep(pattern = "X..Deut",
 We now parse the object into an object of class `Qfeatures`. This standardises
 the formatting of the data.
 ```{r,}
-BRD4df <- readQFeatures(table = BRD4uncurated_wide,
+BRD4df <- readQFeatures(assayData = BRD4uncurated_wide,
                         ecol = i,
                         names = "Deuteration",
                         fnames = "fnames")
